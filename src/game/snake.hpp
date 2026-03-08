@@ -24,8 +24,9 @@ public:
         m_direction(Direction::RIGHT), m_haveNewDir(false), m_headIt(m_body.begin()), m_lastTail(*m_body.rbegin()) {}
 
     void increase();
-    void move();
-    
+    void move(const Cell& newHead);
+    void newHeadPos();
+
     const std::vector<Cell>& getBody() const { return m_body; }
 
     Cell getDirection() const { return m_direction; }

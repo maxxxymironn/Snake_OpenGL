@@ -5,9 +5,13 @@
 
 #include <iostream>
 #include <glad/glad.h>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
 Renderer::Renderer(): success(false) {
     shaderProgram = std::make_unique<ShaderProgram>(shaders::vertSource, shaders::fragSource);
@@ -17,7 +21,7 @@ Renderer::Renderer(): success(false) {
     }
     else {
         init();
-        glClearColor(0.0f, 0.3f, 0.3f, 1.0f);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 
         success = true;
     }

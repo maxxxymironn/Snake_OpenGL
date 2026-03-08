@@ -11,16 +11,23 @@ enum class GameStatus {
     LOOSE
 };
 
+enum class GameMode {
+    DEFAULT,
+    THROUGH_WALLS
+};
+
 class Game {
     Field m_field;
     Snake m_snake;
     Apple m_apple;
 
     GameStatus m_status;
+    GameStatus m_prevStatus = GameStatus::GAME;
+    GameMode m_mode;
 
     bool generateApple;
 
-    bool checkLoose(const Cell& nextHeadPos, const Cell& fieldSize);
+    bool checkLoose(Cell& nextHeadPos, const Cell& fieldSize);
 
 public:
     Game(const int& weight = 20, const int& height = 20, 
@@ -28,6 +35,7 @@ public:
             const std::array<int, 3>& oddCellColor = { 35, 35, 35 });
     
     GameStatus status() const { return m_status; }
+    GameMode mode() const { return m_mode; }
 
     const Apple& apple() const { return m_apple; }
     const Field& field() const { return m_field; }
@@ -38,4 +46,5 @@ public:
 
     void update();
     void reset();
+    void changeStatus();
 };

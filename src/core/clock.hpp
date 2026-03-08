@@ -3,6 +3,7 @@
 struct Clock {
     inline static constexpr float stepTime = 0.15f;
     inline static float gameUpdateAccumulator = 0.f;
+    inline static float tempAccum = 0.f;
     
     inline static float alpha = 0.f;
 
@@ -10,6 +11,8 @@ struct Clock {
     inline static unsigned int frames = 0;
 
     inline static unsigned int counter = 0;
+
+    inline static bool secondHolding = true;
 
     inline static std::chrono::steady_clock::time_point lastTime;
     inline static std::chrono::steady_clock::time_point currentTime;
@@ -29,5 +32,13 @@ struct Clock {
         gameUpdateAccumulator += delta.count();
         fpsAccumulator += delta.count();
         ++frames;
+    }
+
+    static void memorizeAccum() {
+        tempAccum = gameUpdateAccumulator;
+    }
+
+    static void restoreAccum() {
+        gameUpdateAccumulator = tempAccum;
     }
 };

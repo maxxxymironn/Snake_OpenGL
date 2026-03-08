@@ -9,7 +9,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # ===========================
 # executable
 # ===========================
-add_executable(snake)
+if (MSVC)
+    add_executable(snake WIN32)
+else()
+    add_executable(snake)
+endif()
 
 target_sources(snake PRIVATE
     src/main.cpp
@@ -21,6 +25,13 @@ target_sources(snake PRIVATE
     src/game/apple.cpp
     src/game/snake.cpp
 )
+
+# it doesn't work for clang
+if (MSVC)
+    target_link_options(snake PRIVATE
+    /ENTRY:mainCRTStartup
+    )
+endif()
 
 # ===========================
 # GLAD
@@ -49,8 +60,9 @@ add_subdirectory(external/glfw)
 # ===========================
 # GLM (headers only)
 # ===========================
-target_include_directories(snake
-    PRIVATE external/glm
+target_include_directories(snake PRIVATE 
+    external/glm
+    external/stb_image
 )
 
 # ===========================

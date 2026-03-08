@@ -1,3 +1,18 @@
+Version 1.3.1 Changes -------------------------------------------------------------------
+
+I. Game logical:
+- Snake holds on own's position after starting game.
+- Added new game mode "THROUGH_WALLS": snake can move through walls.
+- Added empty menu.
+
+II. Window context:
+- Set window attributes in invisible mode to not show window blink after running .exe.
+
+
+And CMakeLists.txt has changes.
+
+
+
 Version 1.2.3 Changes -------------------------------------------------------------------
 
 A little code cleanup.

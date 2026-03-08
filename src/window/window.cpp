@@ -16,8 +16,12 @@ Window::Window(int width, int height, bool fullscreen) : terminated(false) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+    /* Window presettings */
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+
     /* Create window */ // 4 param -- is fullcreen or no
-    m_handle = glfwCreateWindow(width, height, "Snake | FPS: ", nullptr, nullptr);
+    m_handle = glfwCreateWindow(width, height, "Snake | Length: 2 | FPS: ", nullptr, nullptr);
     if (!m_handle) {
         std::cout << "GLFW: window creation failed" << std::endl;
         terminateWindow();
@@ -45,7 +49,6 @@ Window::Window(int width, int height, bool fullscreen) : terminated(false) {
     m_fullscreen = fullscreen;
 
     glfwSetWindowPos(m_handle, m_mWidth / 2 - m_width / 2, m_mHeight / 2 - m_height / 2);
-    glfwSetWindowAttrib(m_handle, GLFW_RESIZABLE, GLFW_FALSE);
     glfwSwapInterval(1);
 
     GLFWimage icon;
@@ -53,6 +56,8 @@ Window::Window(int width, int height, bool fullscreen) : terminated(false) {
     icon.height = 48;
     icon.pixels = iconData;
     glfwSetWindowIcon(m_handle, 1, &icon);
+
+    glfwShowWindow(m_handle);
 
     glfwSetErrorCallback(&Window::errorCallback);
     glfwSetKeyCallback(m_handle, &Window::keyCallback);

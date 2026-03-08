@@ -49,42 +49,54 @@ int main() {
 		/* ============== Start render ============== */
 		renderer.beginFrame();
 
-		drawField(renderer, fieldSize, oddCellColor, evenCellColor);
+		if (game.status() != GameStatus::MENU) {
+			drawField(renderer, fieldSize, oddCellColor, evenCellColor);
 
-		// Draw apple
-		if (game.apple().isNew()) {
-			appleLoc = game.apple().getPosition();
-			game.apple().setOld();
+			// Draw apple
+			if (game.apple().isNew()) {
+				appleLoc = game.apple().getPosition();
+				game.apple().setOld();
+			}
+			renderer.drawApple(appleLoc.x, appleLoc.y, {150, 0, 0});
+
+			// Draw snake
+			if (Clock::secondHolding || game.status() == GameStatus::LOOSE && !blink)
+				drawStaticSnake(renderer, game.snake().getBody());
+			else if (game.status() == GameStatus::GAME)
+				drawDynamicSnake(renderer, game.snake().getBody(), game.snake().getLastTail(), Clock::alpha);
 		}
-		renderer.drawApple(appleLoc.x, appleLoc.y, {150, 0, 0});
-
-		// Draw snake
-		if (game.status() == GameStatus::GAME)
-			drawDynamicSnake(renderer, game.snake().getBody(), game.snake().getLastTail(), Clock::alpha);
-		else if (game.status() == GameStatus::LOOSE && !blink)
-			drawStaticSnake(renderer, game.snake().getBody());
 
 		renderer.endFrame();
 		/* =============== End render =============== */
 
 		CheckPressedKeys(window, game, newSnakeDir);
 		
-		if (game.status() == GameStatus::GAME) { 
-			while(Clock::gameUpdateAccumulator >= Clock::stepTime) {
-				if (game.snake().haveNewDir())
-					game.snake().setDirection(newSnakeDir);	
-				game.update();
-			
-				Clock::gameUpdateAccumulator -= Clock::stepTime;
+		if (game.status() == GameStatus::GAME) {
+			if (Clock::secondHolding) {
+				if (Clock::gameUpdateAccumulator >= 0.5f) {
+					Clock::secondHolding = false;
+					Clock::gameUpdateAccumulator = 0.f;
+					game.update();
+				}
+			}
+			else {
+				while(Clock::gameUpdateAccumulator >= Clock::stepTime) {
+					if (game.snake().haveNewDir())
+						game.snake().setDirection(newSnakeDir);	
+					game.update();
+				
+					Clock::gameUpdateAccumulator -= Clock::stepTime;
+				}
 			}
 		}
 		if (game.status() == GameStatus::LOOSE) { 
-			if(Clock::gameUpdateAccumulator >= Clock::stepTime * 3) {
+			if(Clock::gameUpdateAccumulator >= 0.45f) {
 				if (++Clock::counter < 8) 
 					blink = !blink;
 				else if (Clock::counter > 11) {
 					blink = false;
 					Clock::counter = 0;
+					Clock::secondHolding = true;
 					game.reset();
 				}
 
@@ -120,6 +132,7 @@ void drawDynamicSnake(Renderer& renderer, const std::vector<Cell>& bodySnake, co
 	int colMix = 0;
 
 	auto it = bodySnake.begin() + 1;
+	/* static body */
 	for (it; it + 1 != bodySnake.end(); ++it) {
 		cellX = static_cast<float>((*it).x);
 		cellY = static_cast<float>((*it).y);
@@ -133,13 +146,44 @@ void drawDynamicSnake(Renderer& renderer, const std::vector<Cell>& bodySnake, co
 	renderer.drawCell({cellX, cellY}, {0, 100 + colMix, 0});
 
 	/* dynamic tail */
-	cellX = static_cast<float>(lastTail.x) + static_cast<float>((*it - lastTail).x) * alpha;
-	cellY = static_cast<float>(lastTail.y) + static_cast<float>((*it - lastTail).y) * alpha;
+	Cell phantomTail = *it;
+	Cell diff = phantomTail - lastTail;
+	Cell lastTailNew = lastTail;
+
+	if (diff.x > 1 || diff.x < -1) {
+		if (diff.x > 1)
+			phantomTail.x = -1;
+		else
+			phantomTail.x = 20;
+	}
+	else if (diff.y > 1 || diff.y < -1) {
+		if (diff.y > 1)
+			phantomTail.y = -1;
+		else
+			phantomTail.y = 20;
+	}
+
+	cellX = static_cast<float>(lastTail.x) + static_cast<float>((phantomTail - lastTail).x) * alpha;
+	cellY = static_cast<float>(lastTail.y) + static_cast<float>((phantomTail - lastTail).y) * alpha;
 	renderer.drawCell({cellX, cellY}, {0, 100 + colMix, 0});
 
 	/* dynamic head */
 	it = bodySnake.begin();
 	Cell prev = *(it + 1);
+
+	diff = *it - prev;
+	if (diff.x > 1 || diff.x < -1) {
+		if (diff.x > 1)
+			prev.x = 20;
+		else
+			prev.x = -1;
+	}
+	else if (diff.y > 1 || diff.y < -1) {
+		if (diff.y > 1)
+			prev.y = 20;
+		else
+			prev.y = -1;
+	}
 	
 	cellX = static_cast<float>(prev.x) + static_cast<float>((*it - prev).x) * alpha;
 	cellY = static_cast<float>(prev.y) + static_cast<float>((*it - prev).y) * alpha;
@@ -158,31 +202,40 @@ void CheckPressedKeys(const Window &window, Game &game, Cell &newSnakeDir) {
     if (window.isKeyPressed(GLFW_KEY_ESCAPE)) {
 		window.close();
 		return;
-	}	
+	}
+	else if (game.status() != GameStatus::MENU && window.isKeyPressed(GLFW_KEY_M)) {
+		Clock::memorizeAccum();
+		game.changeStatus();
+	}
+	else if (game.status() == GameStatus::MENU && window.isKeyPressed(GLFW_KEY_SPACE)) {
+		Clock::restoreAccum();
+		game.changeStatus();
+	}
+	else {
+		bool keys[4]{false}; 
+		if (window.isKeyPressed(GLFW_KEY_W) || window.isKeyPressed(GLFW_KEY_UP)) keys[0] = true;
+		if (window.isKeyPressed(GLFW_KEY_A) || window.isKeyPressed(GLFW_KEY_LEFT)) keys[1] = true;
+		if (window.isKeyPressed(GLFW_KEY_S) || window.isKeyPressed(GLFW_KEY_DOWN)) keys[2] = true;
+		if (window.isKeyPressed(GLFW_KEY_D) || window.isKeyPressed(GLFW_KEY_RIGHT)) keys[3] = true;
 
-	bool keys[4]{false}; 
-	if (window.isKeyPressed(GLFW_KEY_W) || window.isKeyPressed(GLFW_KEY_UP)) keys[0] = true;
-	if (window.isKeyPressed(GLFW_KEY_A) || window.isKeyPressed(GLFW_KEY_LEFT)) keys[1] = true;
-	if (window.isKeyPressed(GLFW_KEY_S) || window.isKeyPressed(GLFW_KEY_DOWN)) keys[2] = true;
-	if (window.isKeyPressed(GLFW_KEY_D) || window.isKeyPressed(GLFW_KEY_RIGHT)) keys[3] = true;
+		if (keys[0] || keys[1] || keys[2] || keys[3]) {
+			Cell snakeDir = game.snake().getDirection();
 
-	if (keys[0] || keys[1] || keys[2] || keys[3]) {
-		Cell snakeDir = game.snake().getDirection();
+			if ((keys[0] || keys[2]) && snakeDir != Direction::UP && snakeDir != Direction::DOWN) {
+				if (keys[0]) 
+					newSnakeDir = Direction::UP;
+				else 
+					newSnakeDir = Direction::DOWN;
+				game.snake().setHaveNewDir();
+			}
 
-		if ((keys[0] || keys[2]) && snakeDir != Direction::UP && snakeDir != Direction::DOWN) {
-			if (keys[0]) 
-				newSnakeDir = Direction::UP;
-			else 
-				newSnakeDir = Direction::DOWN;
-			game.snake().setHaveNewDir();
-		}
-
-		if ((keys[1] || keys[3]) && snakeDir != Direction::LEFT && snakeDir != Direction::RIGHT) {
-			if (keys[1]) 
-				newSnakeDir = Direction::LEFT;
-			else 
-				newSnakeDir = Direction::RIGHT;
-			game.snake().setHaveNewDir();
+			if ((keys[1] || keys[3]) && snakeDir != Direction::LEFT && snakeDir != Direction::RIGHT) {
+				if (keys[1]) 
+					newSnakeDir = Direction::LEFT;
+				else 
+					newSnakeDir = Direction::RIGHT;
+				game.snake().setHaveNewDir();
+			}
 		}
 	}
 }
