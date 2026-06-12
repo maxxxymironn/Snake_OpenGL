@@ -1,4 +1,5 @@
 #pragma once
+
 struct Cell {
     int x, y;
 

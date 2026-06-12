@@ -1,28 +1,44 @@
-#include <GLFW/glfw3.h>
+class GLFWwindow;
 
 class Window {
     GLFWwindow* m_handle = nullptr;
 
-    /* monitor info */
+    // Monitor info
     int m_mWidth;
     int m_mHeight;
     int m_mRefreshRate;
 
-    /* window info */
+    // Window info
     int m_width;
     int m_height;
+    int m_prevWidth;
+    int m_prevHeight;
+
+    int m_windowXPos;
+    int m_windowYPos;
     bool m_fullscreen;
 
     bool terminated;
 
-    // 348 = GLFW_KEY_LAST = GLFW_KEY_MENU
-    inline static bool m_keys[GLFW_KEY_LAST + 1]{};
+    // Title info
+    bool updateTitle;
+    short scoreTitle;
+    int fpsTitle;
+
+    void mapKey();
+
+    void setTitle();
+
+    static void errorCallback(const int error_code, const char *description);
+    static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+    static void sizeCallback(GLFWwindow* window, int width, int height);
+    static void refreshCallback(GLFWwindow* window) {};
 
 public:
-    Window(int width, int height, bool fullscreen);
-
-    ~Window() { terminateWindow(); }
-    void terminate() { terminateWindow(); }
+    Window();
+    ~Window() { terminate(); }
+    
+    void terminate();
 
     void close() const;
     bool shouldClose();
@@ -30,13 +46,6 @@ public:
     void pollEvents();
     void swapBuffers();
 
-    void setTitle(const int& fps, const int& length);
-
-    bool isKeyPressed(const int& keyID) const { return m_keys[keyID]; }
-
-private:
-    void terminateWindow();
-
-    static void errorCallback(const int error_code, const char *description);
-    static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+    void updateFPS(const int fps) { fpsTitle = fps; updateTitle = true; }
+    void updateScore(const bool increment=true);
 };

@@ -1,5 +1,6 @@
 #pragma once
 #include "cell.hpp"
+
 #include <vector>
 
 struct Direction {
@@ -13,32 +14,41 @@ class Snake {
 private:
     Cell m_direction;
     bool m_haveNewDir;
+    bool m_canGetNewDir;
 
     std::vector<Cell> m_body;
     std::vector<Cell>::iterator m_headIt;
-    Cell m_lastTail;
+    Cell m_prevTailCoord;
 
 public:
-    Snake(const int& weight, const int& height)
-        : m_body( { { weight / 2, height / 2 }, { weight / 2 - 1, height / 2 } } ), 
-        m_direction(Direction::RIGHT), m_haveNewDir(false), m_headIt(m_body.begin()), m_lastTail(*m_body.rbegin()) {}
+    Snake(const int weight, const int height):
+        m_body( 
+            {{ weight / 2, height / 2 },
+            { weight / 2 - 1, height / 2 }}
+        ), 
+        m_direction(Direction::RIGHT), 
+        m_haveNewDir(false), 
+        m_headIt(m_body.begin()), 
+        m_prevTailCoord(*m_body.rbegin()),
+        m_canGetNewDir(true) {}
 
     void increase();
-    void move(const Cell& newHead);
+    void move(const Cell newHead);
     void newHeadPos();
 
     const std::vector<Cell>& getBody() const { return m_body; }
 
     Cell getDirection() const { return m_direction; }
-    Cell getLastTail() const { return m_lastTail; }
+    Cell getPrevTail() const { return m_prevTailCoord; }
     Cell getHeadPos() const { return *m_headIt; }
     
     std::size_t getLength() const { return m_body.size(); }
 
+    bool canGetNewDir() const { return m_canGetNewDir; }
     bool haveNewDir() const { return m_haveNewDir; }
 
-    void setDirection(const Cell newDirection) { m_direction = newDirection; m_haveNewDir = false; }
-    void setHaveNewDir() { m_haveNewDir = true; }
+    void setDirection(const Cell newDirection) { m_direction = newDirection;  m_haveNewDir = false; }
+    void setHaveNewDir() { m_haveNewDir = true; m_canGetNewDir = false; }
 
-    void reset(const int& weight, const int& height);
+    void reset(const int weight, const int height);
 };

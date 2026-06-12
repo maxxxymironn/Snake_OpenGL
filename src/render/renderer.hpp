@@ -1,43 +1,69 @@
 #pragma once
+
+#include "../game/snake_parts_enum.hpp"
+
 #include <memory>
-#include <array>
 
 using GLuint = unsigned int;
+using GLsizei = int;
+using GLfloat = float;
 
 class ShaderProgram;
 
 class Renderer {
 private:
     std::unique_ptr<ShaderProgram> shaderProgram;
+    std::unique_ptr<ShaderProgram> shaderTexProgram;
+    bool successShaderCompilation;
 
-    bool success;
-
+    // Objects
     GLuint vaoID = 0;
+    GLuint vaoTexID = 0;
     GLuint vboID = 0;
     GLuint eboID = 0;
 
-    /* uniforms */
-    GLuint projLoc = 0;
+    // Uniforms
     GLuint modelLoc = 0;
+    GLuint modellLoc = 0;
     GLuint colorLoc = 0;
+    GLuint texCoordLoc = 0;
+
+    // Textures
+    GLuint fieldTex = 0;
+    GLuint appleTex = 0;
+    GLuint pauseTex = 0;
+    GLuint snakeBodyTex = 0;
+    GLuint snakeHeadTex = 0;
+    GLuint snakeTailTex = 0;
+    GLuint snakeTurnTex = 0;
+    
+    GLuint snakeAtlasTex = 0;
 
     float NDCcellWidth;
     float NDCcellHeight;
+
+    void init();
+
+    void generateTextures();
+    void generateTextureObject(GLuint& texture, const unsigned char textureArray[], GLsizei textureWidth, GLsizei textureHeight);
 
 public:
     Renderer();
     ~Renderer();
 
-    bool getSuccessInfo() const { return success; }
+    bool getInitializeInfo() const { return successShaderCompilation; }
 
     void setFieldSize(const int& width, const int& height) { NDCcellWidth = 2.f / width; NDCcellHeight = 2.f / height; };
 
     void beginFrame();
+    void useDefaultProgram();
+    void useTextureProgram();
     void endFrame();
 
-    void drawApple(const int& x, const int& y, const std::array<int, 3>& color);
-    void drawCell(const std::array<float, 2>& cellPos, const std::array<int, 3>& cellColor);
+    void drawField();
+    void drawPause();
+    void drawApple(const float x, const float y, const float scale);
+    void drawSnake(const float x, const float y, const SnakeType snakeType, const float rotateAngle);
 
-private:
-    void init();
+    void drawObject(const GLfloat* const modelPtr, const bool useBlend, const GLuint texture, const float textureSize=1.f);
 };

@@ -6,14 +6,20 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# for clangd extension
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # ===========================
 # executable
 # ===========================
-if (MSVC)
-    add_executable(snake WIN32)
-else()
-    add_executable(snake)
-endif()
+
+add_executable(snake)
+
+# if(MSVC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+#     target_link_options(snake PRIVATE
+#         -Xlinker /ENTRY:mainCRTStartup
+#     )
+# endif()
 
 target_sources(snake PRIVATE
     src/main.cpp
@@ -24,14 +30,9 @@ target_sources(snake PRIVATE
     src/game/field.cpp
     src/game/apple.cpp
     src/game/snake.cpp
+    src/core/input.cpp
+    src/core/config_manager.cpp
 )
-
-# it doesn't work for clang
-if (MSVC)
-    target_link_options(snake PRIVATE
-    /ENTRY:mainCRTStartup
-    )
-endif()
 
 # ===========================
 # GLAD
@@ -62,7 +63,6 @@ add_subdirectory(external/glfw)
 # ===========================
 target_include_directories(snake PRIVATE 
     external/glm
-    external/stb_image
 )
 
 # ===========================

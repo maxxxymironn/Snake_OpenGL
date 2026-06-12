@@ -3,18 +3,18 @@
 
 class ShaderProgram {
     GLuint ID;
-    bool compilationSuccess;
+    bool createSuccess;
 
-    GLuint createShader(const GLenum typeShader, const char*& shaderSource, int& success, const bool& isFirst);
+    GLuint createShader(const GLenum typeShader, const char*& shaderSource, int& success, const bool isVertexShader);
     void createProgram(const GLenum vertShaderID, const GLenum fragShaderID, int& success);
-
+    
 public:
     ShaderProgram(const char* vertSource, const char* fragSource);
     ~ShaderProgram() { glDeleteProgram(ID); }
 
-    bool getSuccessInfo() const { return compilationSuccess; }
+    bool getSuccessInfo() const { return createSuccess; }
 
     void use() { glUseProgram(ID); }
 
-    GLuint getID() { return ID; }
+    GLuint getID() const { return ID; }
 };

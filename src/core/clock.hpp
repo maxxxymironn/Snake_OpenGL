@@ -1,44 +1,86 @@
 #pragma once
+
+#include "core_variables.hpp"
+
 #include <chrono>
-struct Clock {
-    inline static constexpr float stepTime = 0.15f;
-    inline static float gameUpdateAccumulator = 0.f;
-    inline static float tempAccum = 0.f;
-    
-    inline static float alpha = 0.f;
+#include <cmath>
 
-    inline static float fpsAccumulator = 0.f;
-    inline static unsigned int frames = 0;
+class Clock {
+    std::chrono::steady_clock::time_point startTime;
+    std::chrono::steady_clock::time_point lastTime;
+    std::chrono::steady_clock::time_point curTime;
+    std::chrono::duration<float> delta;
 
-    inline static unsigned int counter = 0;
+    // game speed
+    float stepTime;
+    float gameStepAccumulator = 0;
 
-    inline static bool secondHolding = true;
+    float appleBreathingCoeff = 0;
+    float snakeMovingCoeff = 0;
 
-    inline static std::chrono::steady_clock::time_point lastTime;
-    inline static std::chrono::steady_clock::time_point currentTime;
-    inline static std::chrono::duration<float> delta;
+    // fps
+    float fpsAccumulator = 0;
+    unsigned int frames = 0;
+    unsigned int prevFrames = 0;
 
-    static void startTime() {
-        lastTime = std::chrono::steady_clock::now();
+    bool onPause = false;
+
+    Clock() : stepTime(CoreConfigVariables::gameSpeed) {}
+
+public:
+    // TODO: replace work with counter (to draw snake dead) to smth, using trigonometry
+    short counter = 0;
+
+    Clock(const Clock&) = delete;
+    Clock& operator=(const Clock&) = delete;
+
+    static Clock& getInstance() {
+        static Clock instance;
+        return instance;
     }
 
-    static void calculateTime() {
-        currentTime = std::chrono::steady_clock::now();
-        delta = currentTime - lastTime;
-        lastTime = currentTime;
+    void start() { startTime = lastTime = std::chrono::steady_clock::now(); }
 
-        alpha = gameUpdateAccumulator / stepTime;
+    void calculate() {
+        // game step
+        curTime = std::chrono::steady_clock::now();
+        delta = curTime - lastTime;
+        lastTime = curTime;
 
-        gameUpdateAccumulator += delta.count();
+        // fps
         fpsAccumulator += delta.count();
         ++frames;
+
+        if (!onPause) {
+            gameStepAccumulator += delta.count();
+            snakeMovingCoeff = gameStepAccumulator / stepTime;
+        }
+
+        delta = curTime - startTime;
+        appleBreathingCoeff = 1.f + 0.07f * std::cos(delta.count() * 4.f);
     }
 
-    static void memorizeAccum() {
-        tempAccum = gameUpdateAccumulator;
+    bool updateFPS() {
+        bool isFpsChanged = false;
+
+	    if (fpsAccumulator >= 1.f) {
+	    	if (frames != prevFrames) {
+	    		prevFrames = frames;
+	    		isFpsChanged = true;
+	    	}
+	    	fpsAccumulator -= 1.f;
+	    	frames = 0;
+	    }
+	    return isFpsChanged;
     }
 
-    static void restoreAccum() {
-        gameUpdateAccumulator = tempAccum;
-    }
+    float getAppleBreathingCoeff() const { return appleBreathingCoeff; }
+    float getSnakeMovingCoeff() const { return snakeMovingCoeff; }
+    float getPrevFrames() const { return prevFrames; }
+
+    bool isUpdateTime(float time=CoreConfigVariables::gameSpeed) const { return gameStepAccumulator >= time; }
+    void updateGameStepAccumulator() { gameStepAccumulator -= stepTime; }
+    void resetGameStepAccumulator() { gameStepAccumulator = 0.f; }
+
+    void changePauseMode() { onPause = !onPause; }
 };

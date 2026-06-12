@@ -2,9 +2,9 @@
 #include <random>
 
 void Apple::generateApple(const std::vector<Cell>& freeCells) {
-    /* get seed */
+    // Get seed
     std::random_device rd;
-    /* random func */
+    // Random func
     std::mt19937 rand(rd());
 
     std::uniform_int_distribution<int> dist(0, freeCells.size() - 1);

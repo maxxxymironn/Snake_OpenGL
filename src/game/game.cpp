@@ -1,15 +1,17 @@
 #include "game.hpp"
+#include "game_variables.hpp"
+#include "snake.hpp"
 
-Game::Game(
-    const int& weight,
-    const int& height,
-    const std::array<int, 3>& evenCellColor,
-    const std::array<int, 3>& oddCellColor)
-    : m_field(weight, height, evenCellColor, oddCellColor),
-      m_snake(weight, height),
+Game::Game()
+    : m_field(
+        GameConfigVariables::cellCountX,
+        GameConfigVariables::cellCountY
+      ),
+      m_snake(GameConfigVariables::cellCountX, GameConfigVariables::cellCountY),
       m_apple({-1, -1}),
-      m_status(GameStatus::GAME),
-      m_mode(GameMode::THROUGH_WALLS),
+      m_status(GameStatus::GAME_START),
+      m_prevStatus(m_status),
+      m_mode(GameConfigVariables::gameMode),
       generateApple(false)
 {
     for (const Cell& bodyEl : m_snake.getBody())
@@ -74,7 +76,7 @@ void Game::update() {
             generateApple = true;
         }
         else {
-            m_field.addFreeCell(m_snake.getLastTail());
+            m_field.addFreeCell(m_snake.getPrevTail());
             m_field.removeFreeCell(newHeadPos);
         }
     }
@@ -95,14 +97,19 @@ void Game::reset() {
     m_apple.generateApple(m_field.getFreeCells());
     m_field.removeFreeCell(m_apple.getPosition());
 
-    m_status = GameStatus::GAME;
+    m_status = GameStatus::GAME_START;
 }
 
-void Game::changeStatus() {
-    if (m_status != GameStatus::MENU) {
-        m_prevStatus = m_status;
-        m_status = GameStatus::MENU;
+void Game::changeStatus(GameStatus status) {
+    if (status == GameStatus::PAUSE) {
+        if (m_status != GameStatus::PAUSE) {
+            m_prevStatus = m_status;
+            m_status = status;
+        } else {
+            m_status = m_prevStatus;
+        }
     }
-    else
-        m_status = m_prevStatus;
+    else if (status == GameStatus::GAME && m_status == GameStatus::GAME_START) {
+        m_status = GameStatus::GAME;
+    }
 }

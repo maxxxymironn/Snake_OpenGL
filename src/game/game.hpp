@@ -3,18 +3,7 @@
 #include "cell.hpp"
 #include "field.hpp"
 #include "snake.hpp"
-
-enum class GameStatus {
-    MENU,
-    GAME,
-    WIN,
-    LOOSE
-};
-
-enum class GameMode {
-    DEFAULT,
-    THROUGH_WALLS
-};
+#include "enums.hpp"
 
 class Game {
     Field m_field;
@@ -22,7 +11,8 @@ class Game {
     Apple m_apple;
 
     GameStatus m_status;
-    GameStatus m_prevStatus = GameStatus::GAME;
+    GameStatus m_prevStatus;
+
     GameMode m_mode;
 
     bool generateApple;
@@ -30,9 +20,7 @@ class Game {
     bool checkLoose(Cell& nextHeadPos, const Cell& fieldSize);
 
 public:
-    Game(const int& weight = 20, const int& height = 20, 
-            const std::array<int, 3>& evenCellColor = { 30, 30, 30 }, 
-            const std::array<int, 3>& oddCellColor = { 35, 35, 35 });
+    Game();
     
     GameStatus status() const { return m_status; }
     GameMode mode() const { return m_mode; }
@@ -46,5 +34,6 @@ public:
 
     void update();
     void reset();
-    void changeStatus();
+    
+    void changeStatus(GameStatus status=GameStatus::PAUSE);
 };
