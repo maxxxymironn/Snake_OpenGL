@@ -1,13 +1,14 @@
 #pragma once
-
-#include <string>
+#include <filesystem>
 
 class ConfigManager {
-    std::string filePath = "snakeOpenGL.config";
+    std::filesystem::path file;
 
-    ConfigManager() { unload(); }
+    ConfigManager();
+    ~ConfigManager();
 
-    bool unload();
+    bool readFile();
+    std::filesystem::path getFilePath();
 public:
     ConfigManager(const ConfigManager&) = delete;
     ConfigManager& operator=(const ConfigManager&) = delete;
@@ -17,5 +18,5 @@ public:
         return instance;
     }
 
-    bool upload();
+    bool saveFile();
 };

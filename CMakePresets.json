@@ -5,7 +5,7 @@
       "name": "ninja-debug",
       "displayName": "Ninja Debug",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/ninja-debug/dynamic",
+      "binaryDir": "${sourceDir}/build/ninja/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_COMPILER": "clang++",
@@ -13,34 +13,10 @@
       }
     },
     {
-      "name": "ninja-debug-static",
-      "displayName": "Ninja Debug STATIC",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/ninja-debug/static",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_C_COMPILER": "clang",
-        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDebug"
-      }
-    },
-    {
       "name": "ninja-release",
       "displayName": "Ninja Release",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/ninja-release/dynamic",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_C_COMPILER": "clang",
-        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDLL"
-      }
-    },
-    {
-      "name": "ninja-release-static",
-      "displayName": "Ninja Release STATIC",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/ninja-release/static",
+      "binaryDir": "${sourceDir}/build/ninja/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_CXX_COMPILER": "clang++",
@@ -52,34 +28,16 @@
       "name": "msvc-debug",
       "displayName": "MSVC Debug",
       "generator": "Visual Studio 18 2026",
-      "binaryDir": "${sourceDir}/build/msvc-debug/dynamic",
+      "binaryDir": "${sourceDir}/build/msvc/debug/",
       "cacheVariables": {
         "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDebugDLL"
       }
     },
     {
-      "name": "msvc-debug-static",
-      "displayName": "MSVC Debug STATIC",
-      "generator": "Visual Studio 18 2026",
-      "binaryDir": "${sourceDir}/build/msvc-debug/static",
-      "cacheVariables": {
-        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDebug"
-      }
-    },
-    {
       "name": "msvc-release",
-      "displayName": "MSVC Release",
-      "generator": "Visual Studio 18 2026",
-      "binaryDir": "${sourceDir}/build/msvc-release/dynamic",
-      "cacheVariables": {
-        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDLL"
-      }
-    },
-    {
-      "name": "msvc-release-static",
       "displayName": "MSVC Release STATIC",
       "generator": "Visual Studio 18 2026",
-      "binaryDir": "${sourceDir}/build/msvc-release/static",
+      "binaryDir": "${sourceDir}/build/msvc/release",
       "cacheVariables": {
         "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded"
       }
@@ -92,16 +50,8 @@
       "configurePreset": "ninja-debug"
     },
     {
-      "name": "ninja-debug-static",
-      "configurePreset": "ninja-debug-static"
-    },
-    {
       "name": "ninja-release",
       "configurePreset": "ninja-release"
-    },
-    {
-      "name": "ninja-release-static",
-      "configurePreset": "ninja-release-static"
     },
     {
       "name": "msvc-debug",
@@ -109,18 +59,8 @@
       "configuration": "Debug"
     },
     {
-      "name": "msvc-debug-static",
-      "configurePreset": "msvc-debug-static",
-      "configuration": "Debug"
-    },
-    {
       "name": "msvc-release",
       "configurePreset": "msvc-release",
-      "configuration": "Release"
-    },
-    {
-      "name": "msvc-release-static",
-      "configurePreset": "msvc-release-static",
       "configuration": "Release"
     }
   ]

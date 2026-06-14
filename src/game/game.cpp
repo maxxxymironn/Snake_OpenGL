@@ -4,10 +4,10 @@
 
 Game::Game()
     : m_field(
-        GameConfigVariables::cellCountX,
-        GameConfigVariables::cellCountY
+        static_cast<int>(GameConfigVariables::fieldSize),
+        static_cast<int>(GameConfigVariables::fieldSize)
       ),
-      m_snake(GameConfigVariables::cellCountX, GameConfigVariables::cellCountY),
+      m_snake(static_cast<int>(GameConfigVariables::fieldSize), static_cast<int>(GameConfigVariables::fieldSize)),
       m_apple({-1, -1}),
       m_status(GameStatus::GAME_START),
       m_prevStatus(m_status),

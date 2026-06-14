@@ -129,15 +129,14 @@ void Renderer::generateTextures() {
     generateTextureObject(pauseTex, pausePixels, pauseTexWidth, pauseTexHeight);
 
     // snake body texture
-    GLsizei snakePartTexWidth = 40;
-    GLsizei snakePartTexHeight = 40;
-    generateTextureObject(snakeBodyTex, snakeBodyPixels, snakePartTexWidth, snakePartTexWidth);
+    GLsizei snakePartTexSize = 40;
+    generateTextureObject(snakeBodyTex, snakeBodyPixels, snakePartTexSize, snakePartTexSize);
     // snake head texture
-    generateTextureObject(snakeHeadTex, snakeHeadPixels, snakePartTexWidth, snakePartTexWidth);
+    generateTextureObject(snakeHeadTex, snakeHeadPixels, snakePartTexSize, snakePartTexSize);
     // snake tail texture
-    generateTextureObject(snakeTailTex, snakeTailPixels, snakePartTexWidth, snakePartTexWidth);
+    generateTextureObject(snakeTailTex, snakeTailPixels, snakePartTexSize, snakePartTexSize);
     // snake turn texture
-    generateTextureObject(snakeTurnTex, snakeTurnPixels, snakePartTexWidth, snakePartTexWidth);
+    generateTextureObject(snakeTurnTex, snakeTurnPixels, snakePartTexSize, snakePartTexSize);
 
     GLsizei snakeAtlasWidth = 80;
     GLsizei snakeAtlasHeight = 80;

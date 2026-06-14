@@ -9,17 +9,27 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # for clangd extension
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+set(DEBUG_MODE ON)
+
 # ===========================
 # executable
 # ===========================
 
 add_executable(snake)
 
-# if(MSVC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-#     target_link_options(snake PRIVATE
-#         -Xlinker /ENTRY:mainCRTStartup
-#     )
-# endif()
+# Set extra flags to strict compilation
+if(MSVC)
+    target_compile_options(snake PRIVATE /W4)
+else()
+    target_compile_options(snake PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+# Set window or console mode
+if(NOT DEBUG_MODE AND (MSVC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+    target_link_options(snake PRIVATE
+        -Xlinker /ENTRY:mainCRTStartup
+    )
+endif()
 
 target_sources(snake PRIVATE
     src/main.cpp
@@ -44,8 +54,8 @@ add_library(glad STATIC
 )
 
 # includes glad.h to glad.c
-target_include_directories(glad
-    PUBLIC external/glad/include
+target_include_directories(glad SYSTEM PUBLIC
+    external/glad/include
 )
 
 # ===========================
@@ -56,12 +66,12 @@ set(GLFW_BUILD_TESTS OFF)
 set(GLFW_BUILD_EXAMPLES OFF)
 
 # just include its CMakeLists.txt
-add_subdirectory(external/glfw)
+add_subdirectory(external/glfw SYSTEM)
 
 # ===========================
 # GLM (headers only)
 # ===========================
-target_include_directories(snake PRIVATE 
+target_include_directories(snake SYSTEM PRIVATE 
     external/glm
 )
 

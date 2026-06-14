@@ -12,13 +12,13 @@ struct Direction {
 
 class Snake {
 private:
-    Cell m_direction;
-    bool m_haveNewDir;
-    bool m_canGetNewDir;
-
     std::vector<Cell> m_body;
     std::vector<Cell>::iterator m_headIt;
     Cell m_prevTailCoord;
+
+    Cell m_direction;
+    bool m_haveNewDir;
+    bool m_canGetNewDir;
 
 public:
     Snake(const int weight, const int height):
@@ -26,10 +26,10 @@ public:
             {{ weight / 2, height / 2 },
             { weight / 2 - 1, height / 2 }}
         ), 
-        m_direction(Direction::RIGHT), 
-        m_haveNewDir(false), 
         m_headIt(m_body.begin()), 
         m_prevTailCoord(*m_body.rbegin()),
+        m_direction(Direction::RIGHT), 
+        m_haveNewDir(false), 
         m_canGetNewDir(true) {}
 
     void increase();
