@@ -40,8 +40,8 @@ target_sources(snake PRIVATE
     src/game/field.cpp
     src/game/apple.cpp
     src/game/snake.cpp
-    src/core/input.cpp
-    src/core/config_manager.cpp
+    src/config/config_manager.cpp
+    src/core/input_manager.cpp
 )
 
 # ===========================

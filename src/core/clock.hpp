@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core_variables.hpp"
+#include "../config/core_config.hpp"
 
 #include <chrono>
 #include <cmath>
@@ -25,19 +25,8 @@ class Clock {
 
     bool onPause = false;
 
-    Clock() : stepTime(CoreConfigVariables::gameSpeed) {}
-
 public:
-    // TODO: replace work with counter (to draw snake dead) to smth, using trigonometry
-    short counter = 0;
-
-    Clock(const Clock&) = delete;
-    Clock& operator=(const Clock&) = delete;
-
-    static Clock& getInstance() {
-        static Clock instance;
-        return instance;
-    }
+    Clock(): stepTime(CoreConfigVariables::gameSpeed) {}
 
     void start() { startTime = lastTime = std::chrono::steady_clock::now(); }
 
@@ -82,5 +71,5 @@ public:
     void updateGameStepAccumulator() { gameStepAccumulator -= stepTime; }
     void resetGameStepAccumulator() { gameStepAccumulator = 0.f; }
 
-    void changePauseMode() { onPause = !onPause; }
+    void updatePauseStatus() { onPause = !onPause; }
 };

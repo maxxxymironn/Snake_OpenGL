@@ -1,41 +1,33 @@
-#include "core/config_manager.hpp"
+#include "config/config_manager.hpp"
 #include "core/clock.hpp"
-#include "core/input.hpp"
+#include "core/input_manager.hpp"
 #include "game/enums.hpp"
-#include "game/snake_parts_enum.hpp"
 #include "game/game.hpp"
+#include "game/snake_parts_enum.hpp"
 #include "render/renderer.hpp"
 #include "window/window.hpp"
 
+void checkPressedKeys(const Window& window, Clock& clock, Game& game, InputManager& inputManager);
+void updateDir(Snake& snake, InputManager& inputManager);
 void drawSnake(Renderer& renderer, const Game& game, const float alpha);
-
-void checkPressedKeys(const Window& window, Clock& clock, Game& game, Cell& newSnakeDir);
-void checkNewDirection(Game& game, Cell& newSnakeDir);
-
 float getRotateAngle(const Cell first, const Cell second);
 
 int main() {
-	ConfigManager& configManager = ConfigManager::getInstance();
-	Window window;
+	ConfigManager configManager;
+	InputManager inputManager;
+	Window window(&inputManager);
 	Renderer renderer;
 	if(!renderer.getInitializeInfo()) {
 		window.terminate();
 		return -1;
 	}
 	Game game;
+	Clock clock; // TODO: maybe class Clock should be in composition with class Game
 
-	// TODO: maybe class Clock should be in composition with class Game
-	Clock& clock = Clock::getInstance();
-
-	// often used game info
 	Cell applePos = game.apple().getPosition();
-	Cell newSnakeDir = Direction::RIGHT;
-
-	const Cell fieldSize = game.field().getFieldSize();
-	renderer.setFieldSize(fieldSize.x, fieldSize.y);
-
-	// TODO: replace blink to trigonomrty
-	bool blink = false;
+	bool readyToSaveFile = true;
+	
+	renderer.setFieldSize(game.field().getFieldSize().x, game.field().getFieldSize().y);
 
 	clock.start();
 	while(!window.shouldClose()) {
@@ -57,14 +49,12 @@ int main() {
 		renderer.endFrame();
 		/* End render */
 
-		checkPressedKeys(window, clock, game, newSnakeDir);
+		checkPressedKeys(window, clock, game, inputManager);
 		
 		/* Logic part */
 		if (game.status() == GameStatus::GAME) {
 			while(clock.isUpdateTime()) {
-				checkNewDirection(game, newSnakeDir);
-				if (game.snake().haveNewDir())
-					game.snake().setDirection(newSnakeDir);
+				updateDir(game.snake(), inputManager);
 				game.update();
 			
 				clock.updateGameStepAccumulator();
@@ -77,19 +67,14 @@ int main() {
 			}
 		}
 		if (game.status() == GameStatus::LOOSE) {
-			// TODO: save stats to file
-
-			if(clock.isUpdateTime(0.45f)) {
-				if (++clock.counter < 8) 
-					blink = !blink;
-				else if (clock.counter > 11) {
-					blink = false;
-					clock.counter = 0;
-					Input::clearBuffer();
-					game.reset();
-					window.updateScore(false);
-				}
-
+			if (readyToSaveFile) {
+				configManager.saveFile();
+				readyToSaveFile = false;
+			}
+			if (clock.isUpdateTime(3.f)) {
+				game.reset();
+				window.updateScore(false);
+				inputManager.turnOffBuffer();
 				clock.resetGameStepAccumulator();
 			}
 		}
@@ -97,20 +82,46 @@ int main() {
 			window.close();
 		}
 		else if (game.status() == GameStatus::GAME_START && clock.isUpdateTime(0.5f))  {
-			game.changeStatus(GameStatus::GAME);
+			readyToSaveFile = true;
+			game.updateStatus(GameStatus::GAME);
 			game.update();
 			clock.resetGameStepAccumulator();
-			Input::changeWorkingMode();
+			inputManager.turnOnBuffer();
 		}
 		/* End logic */
 
-		Input::update();
+		inputManager.update();
 
 		window.swapBuffers();
 		window.pollEvents();
 	}
 
 	return 0;
+}
+
+void checkPressedKeys(const Window& window, Clock& clock, Game &game, InputManager& inputManager) {
+	if (inputManager.isKeyDown(Action::Exit))
+		window.close();
+	else if (inputManager.isKeyPressed(Action::Pause)) {
+		clock.updatePauseStatus();
+		game.updateStatus(GameStatus::PAUSE);
+		inputManager.changeWorkStatus();
+	}
+}
+
+void updateDir(Snake& snake, InputManager& inputManager) {
+	if (!inputManager.isBufferEmpty()) {
+		Cell newDir;
+		switch (inputManager.getBufferKey()) {
+			case Action::MoveUp:   newDir = Direction::UP; break;
+			case Action::MoveDown: newDir = Direction::DOWN; break;
+			case Action::MoveLeft: newDir = Direction::LEFT; break;
+			case Action::MoveRight:newDir = Direction::RIGHT; break;
+		}
+
+		if (snake.getDirection() + newDir != Cell{0, 0})
+			snake.setDirection(newDir);
+	}
 }
 
 void drawSnake(Renderer& renderer, const Game& game, const float alpha) {
@@ -121,14 +132,12 @@ void drawSnake(Renderer& renderer, const Game& game, const float alpha) {
 
 	const Cell head = snakeBody[0];
 	Cell prevHead = snakeBody[1];
-	float headRotateAngle = getRotateAngle(head, prevHead);
 
 	if (gameStatus == GameStatus::GAME || gameStatus == GameStatus::PAUSE) {
 		const Cell prevTail = game.snake().getPrevTail();
 		const Cell fieldSize = game.field().getFieldSize();
 		
 		/* static body */
-		bool flag = true;
 		for (auto it = snakeBody.rbegin() + 1; it + 1 != snakeBody.rend(); ++it) {
 			cellX = static_cast<float>((*it).x);
 			cellY = static_cast<float>((*it).y);
@@ -187,6 +196,9 @@ void drawSnake(Renderer& renderer, const Game& game, const float alpha) {
 		rotateAngle = getRotateAngle(head, prevHead);
 		renderer.drawSnake(cellX, cellY, SnakeType::HEAD, rotateAngle);
 	} 
+	else if (gameStatus == GameStatus::LOOSE) {
+
+	}
 	else {
 		cellX = static_cast<float>(head.x);
 		cellY = static_cast<float>(head.y);
@@ -199,30 +211,6 @@ void drawSnake(Renderer& renderer, const Game& game, const float alpha) {
 			cellY = static_cast<float>(bodyEl.y);
 			renderer.drawSnake(cellX, cellY, SnakeType::BODY, 0);
 		}
-	}
-}
-
-void checkNewDirection(Game& game, Cell& newSnakeDir) {
-	if (Input::bufferIsNotEmpty() && game.snake().canGetNewDir()) {
-		switch (Input::getKeyFromBuffer()) {
-			case Action::MoveUp:   newSnakeDir = Direction::UP; break;
-			case Action::MoveDown: newSnakeDir = Direction::DOWN; break;
-			case Action::MoveLeft: newSnakeDir = Direction::LEFT; break;
-			case Action::MoveRight:newSnakeDir = Direction::RIGHT; break;
-		}
-
-		if (newSnakeDir + game.snake().getDirection() != Cell{0, 0})
-			game.snake().setHaveNewDir();
-	}
-}
-
-void checkPressedKeys(const Window& window, Clock& clock, Game &game, Cell &newSnakeDir) {
-	if (Input::isKeyDown(Action::Exit))
-		window.close();
-	else if (Input::isKeyPressed(Action::Pause)) {
-		clock.changePauseMode();
-		game.changeStatus();
-		Input::changeWorkingMode();
 	}
 }
 

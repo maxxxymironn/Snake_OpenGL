@@ -3,14 +3,14 @@
 #include "shaders.hpp"
 #include "shader_program.hpp"
 #include "quad_vertices.hpp"
-#include "../textures/field_texture.hpp"
-#include "../textures/apple_texture.hpp"
-#include "../textures/pause_texture.hpp"
-#include "../textures/snake_body_texture.hpp"
-#include "../textures/snake_head_texture.hpp"
-#include "../textures/snake_tail_texture.hpp"
-#include "../textures/snake_turn_texture.hpp"
-#include "../textures/snake_atlas.hpp"
+#include "textures/field_texture.hpp"
+#include "textures/apple_texture.hpp"
+#include "textures/pause_texture.hpp"
+#include "textures/snake_body_texture.hpp"
+#include "textures/snake_head_texture.hpp"
+#include "textures/snake_tail_texture.hpp"
+#include "textures/snake_turn_texture.hpp"
+#include "textures/snake_atlas.hpp"
 
 #include <glad/glad.h>
 #include <glm/glm.hpp>

@@ -1,3 +1,10 @@
+Version 1.4.3 Changes -------------------------------------------------------------------
+
+- Cleanup. 
+- Replace singletons with standard classes.
+
+
+
 Version 1.4.2 Changes -------------------------------------------------------------------
 
 I. Game logical:

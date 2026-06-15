@@ -49,15 +49,15 @@
 },
 {
   "directory": "P:/pet_projects/Snake_OpenGL/build/ninja/debug",
-  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -isystem P:/pet_projects/Snake_OpenGL/external/glm -isystem P:/pet_projects/Snake_OpenGL/external/glad/include -isystem P:/pet_projects/Snake_OpenGL/external/glfw/include -O0 -g -Xclang -gcodeview -std=c++17 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wextra -Wpedantic -o CMakeFiles\\snake.dir\\src\\core\\input.cpp.obj -c P:\\pet_projects\\Snake_OpenGL\\src\\core\\input.cpp",
-  "file": "P:/pet_projects/Snake_OpenGL/src/core/input.cpp",
-  "output": "P:/pet_projects/Snake_OpenGL/build/ninja/debug/CMakeFiles/snake.dir/src/core/input.cpp.obj"
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -isystem P:/pet_projects/Snake_OpenGL/external/glm -isystem P:/pet_projects/Snake_OpenGL/external/glad/include -isystem P:/pet_projects/Snake_OpenGL/external/glfw/include -O0 -g -Xclang -gcodeview -std=c++17 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wextra -Wpedantic -o CMakeFiles\\snake.dir\\src\\config\\config_manager.cpp.obj -c P:\\pet_projects\\Snake_OpenGL\\src\\config\\config_manager.cpp",
+  "file": "P:/pet_projects/Snake_OpenGL/src/config/config_manager.cpp",
+  "output": "P:/pet_projects/Snake_OpenGL/build/ninja/debug/CMakeFiles/snake.dir/src/config/config_manager.cpp.obj"
 },
 {
   "directory": "P:/pet_projects/Snake_OpenGL/build/ninja/debug",
-  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -isystem P:/pet_projects/Snake_OpenGL/external/glm -isystem P:/pet_projects/Snake_OpenGL/external/glad/include -isystem P:/pet_projects/Snake_OpenGL/external/glfw/include -O0 -g -Xclang -gcodeview -std=c++17 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wextra -Wpedantic -o CMakeFiles\\snake.dir\\src\\core\\config_manager.cpp.obj -c P:\\pet_projects\\Snake_OpenGL\\src\\core\\config_manager.cpp",
-  "file": "P:/pet_projects/Snake_OpenGL/src/core/config_manager.cpp",
-  "output": "P:/pet_projects/Snake_OpenGL/build/ninja/debug/CMakeFiles/snake.dir/src/core/config_manager.cpp.obj"
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -isystem P:/pet_projects/Snake_OpenGL/external/glm -isystem P:/pet_projects/Snake_OpenGL/external/glad/include -isystem P:/pet_projects/Snake_OpenGL/external/glfw/include -O0 -g -Xclang -gcodeview -std=c++17 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Wall -Wextra -Wpedantic -o CMakeFiles\\snake.dir\\src\\core\\input_manager.cpp.obj -c P:\\pet_projects\\Snake_OpenGL\\src\\core\\input_manager.cpp",
+  "file": "P:/pet_projects/Snake_OpenGL/src/core/input_manager.cpp",
+  "output": "P:/pet_projects/Snake_OpenGL/build/ninja/debug/CMakeFiles/snake.dir/src/core/input_manager.cpp.obj"
 },
 {
   "directory": "P:/pet_projects/Snake_OpenGL/build/ninja/debug",

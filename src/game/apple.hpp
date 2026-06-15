@@ -7,8 +7,7 @@ class Apple {
     bool m_isNew;
 
 public:
-    Apple(const Cell& nullPos): m_position(nullPos), m_isNew(true) {};
-
+    Apple(): m_isNew(false) {}
     void generateApple(const std::vector<Cell>& freeCells);
 
     const Cell& getPosition() const { return m_position; }

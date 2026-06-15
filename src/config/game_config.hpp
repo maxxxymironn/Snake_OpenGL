@@ -1,5 +1,5 @@
 #pragma once
-#include "enums.hpp"
+#include "../game/enums.hpp"
 
 struct GameConfigVariables {
     inline static int maxScore = 0;

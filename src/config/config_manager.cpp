@@ -1,8 +1,8 @@
 #include "config_manager.hpp"
 
-#include "../window/window_variables.hpp"
-#include "../game/game_variables.hpp"
-#include "core_variables.hpp"
+#include "core_config.hpp"
+#include "game_config.hpp"
+#include "window_config.hpp"
 
 #include <exception>
 #include <filesystem>
@@ -13,8 +13,8 @@
 
 #ifdef _WIN32
 #include <combaseapi.h>
-#include <winerror.h>
 #include <shlobj.h>
+#include <winerror.h>
 #include <windows.h>
 #endif
 

@@ -1,9 +1,9 @@
 #pragma once
 #include "apple.hpp"
 #include "cell.hpp"
+#include "enums.hpp"
 #include "field.hpp"
 #include "snake.hpp"
-#include "enums.hpp"
 
 class Game {
     Field m_field;
@@ -17,7 +17,7 @@ class Game {
 
     bool generateApple;
 
-    bool checkLoose(Cell& nextHeadPos, const Cell& fieldSize);
+    bool checkLoose(Cell& newHead);
 
 public:
     Game();
@@ -35,5 +35,5 @@ public:
     void update();
     void reset();
     
-    void changeStatus(GameStatus status=GameStatus::PAUSE);
+    void updateStatus(GameStatus status);
 };

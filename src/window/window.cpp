@@ -1,9 +1,8 @@
 #include "window.hpp" 
 
-#include "../textures/apple_texture.hpp"
-#include "../core/input.hpp"
+#include "../render/textures/apple_texture.hpp"
 #include "../core/action.hpp"
-#include "window_variables.hpp"
+#include "../config/window_config.hpp"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h> // after glad
@@ -13,12 +12,13 @@
 
 inline static Action keyMap[GLFW_KEY_LAST + 1];
 
-Window::Window() 
-    : terminated(false),
+Window::Window(InputManager* const inputManager)
+    : m_inputManager(inputManager),
+      terminated(false),
       updateTitle(false),
-      fpsTitle(0),
-      scoreTitle(-1)
-        {
+      scoreTitle(0),
+      fpsTitle(-1)
+    {
     if (!glfwInit()) {
         std::cerr << "GLFW initialization failed" << std::endl;
         exit(1);
@@ -110,7 +110,7 @@ void Window::close() const { glfwSetWindowShouldClose(m_handle, GLFW_TRUE); }
 bool Window::shouldClose() { return static_cast<bool>(glfwWindowShouldClose(m_handle)); }
 
 void Window::mapKey() {
-    for (short i; i <= GLFW_KEY_LAST; ++i)
+    for (int i = 0; i <= GLFW_KEY_LAST; ++i)
         keyMap[i] = Action::COUNT;
     
     keyMap[GLFW_KEY_ESCAPE] = Action::Exit;
@@ -158,8 +158,9 @@ void Window::terminate() {
 }
 
 void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    Window* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
+
     if (mods == GLFW_MOD_ALT && action == GLFW_PRESS && key == GLFW_KEY_ENTER) {
-        Window* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
         if (self) {
             if (!self->m_fullscreen) {
                 self->m_prevWidth = self->m_width;
@@ -192,7 +193,8 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
     Action aKey = keyMap[key];
     if (aKey == Action::COUNT)
         return;
-    Input::setKey(aKey, action);
+    
+    self->m_inputManager->setKey(aKey, action);
 }
 
 void Window::errorCallback(const int error_code, const char *description) {

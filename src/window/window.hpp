@@ -1,7 +1,10 @@
+#include "../core/input_manager.hpp"
+
 class GLFWwindow;
 
 class Window {
     GLFWwindow* m_handle = nullptr;
+    InputManager* m_inputManager;
 
     // Monitor info
     int m_mWidth;
@@ -22,7 +25,7 @@ class Window {
 
     // Title info
     bool updateTitle;
-    short scoreTitle;
+    int scoreTitle;
     int fpsTitle;
 
     void mapKey();
@@ -35,7 +38,7 @@ class Window {
     static void refreshCallback(GLFWwindow* window) {};
 
 public:
-    Window();
+    Window(InputManager* const inputManager);
     ~Window() { terminate(); }
     
     void terminate();

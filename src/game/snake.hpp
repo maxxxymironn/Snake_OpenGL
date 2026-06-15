@@ -15,26 +15,20 @@ private:
     std::vector<Cell> m_body;
     std::vector<Cell>::iterator m_headIt;
     Cell m_prevTailCoord;
-
     Cell m_direction;
-    bool m_haveNewDir;
-    bool m_canGetNewDir;
 
 public:
-    Snake(const int weight, const int height):
-        m_body( 
-            {{ weight / 2, height / 2 },
-            { weight / 2 - 1, height / 2 }}
-        ), 
+    Snake(const int width, const int height):
+        m_body({
+            { width / 2, height / 2 },
+            { width / 2 - 1, height / 2 }
+        }), 
         m_headIt(m_body.begin()), 
         m_prevTailCoord(*m_body.rbegin()),
-        m_direction(Direction::RIGHT), 
-        m_haveNewDir(false), 
-        m_canGetNewDir(true) {}
+        m_direction(Direction::RIGHT) {}
 
     void increase();
     void move(const Cell newHead);
-    void newHeadPos();
 
     const std::vector<Cell>& getBody() const { return m_body; }
 
@@ -44,11 +38,7 @@ public:
     
     std::size_t getLength() const { return m_body.size(); }
 
-    bool canGetNewDir() const { return m_canGetNewDir; }
-    bool haveNewDir() const { return m_haveNewDir; }
+    void setDirection(const Cell newDirection) { m_direction = newDirection; }
 
-    void setDirection(const Cell newDirection) { m_direction = newDirection;  m_haveNewDir = false; }
-    void setHaveNewDir() { m_haveNewDir = true; m_canGetNewDir = false; }
-
-    void reset(const int weight, const int height);
+    void reset(const int width, const int height);
 };
