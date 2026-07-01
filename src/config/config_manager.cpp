@@ -33,14 +33,14 @@ static bool tryRead(int& iValue, const std::string& sValue, const std::string& c
     return true;
 }
 
-ConfigManager::ConfigManager() : file(getFilePath()) {
+ConfigManager::ConfigManager() : file(getFilePath()), readyToSaveFile(true) {
     if (!readFile())
-        printError("config file cannot read and be created. Setting are set to default");
+        printError("config file aren't readed. Settings are set to default");
 }
 
 ConfigManager::~ConfigManager() {
     if (!saveFile())
-        printError("\n");
+        printError("config file aren't saved");
 }
 
 std::filesystem::path ConfigManager::getFilePath() {
@@ -207,6 +207,9 @@ bool ConfigManager::readFile() {
 }
 
 bool ConfigManager::saveFile() {
+    if (!readyToSaveFile)
+        return false;
+
     std::ofstream out(file);
     if (!out.is_open())
         return false;
@@ -259,5 +262,6 @@ bool ConfigManager::saveFile() {
     "\n#Core information\n"
     "gameSpeed = " << strGameSpeed << "\n";
 
+    readyToSaveFile = false;
     return true;
 }

@@ -63,23 +63,23 @@ void Game::update() {
         generateApple = false;
     }
 
-    if (!checkLoose(newHead)) {
-        m_snake.move(newHead);
-        
-        if (newHead == m_apple.getPosition()) {
-            m_snake.increase();
-            if (m_field.getFreeCellsSize() == 0) {
-                m_status = GameStatus::WIN;
-                return;
-            }
-            generateApple = true;
-        }
-        else {
-            m_field.addFreeCell(m_snake.getPrevTail());
-            m_field.removeFreeCell(newHead);
-        }
-    } else {
+    if (checkLoose(newHead)) {
         m_status = GameStatus::LOOSE;
+        return;
+    }
+
+    m_snake.move(newHead);
+    if (newHead == m_apple.getPosition()) {
+        m_snake.increase();
+        if (m_field.getFreeCellsSize() == 0) {
+            m_status = GameStatus::WIN;
+            return;
+        }
+        generateApple = true;
+    }
+    else {
+        m_field.addFreeCell(m_snake.getPrevTail());
+        m_field.removeFreeCell(newHead);
     }
 }
 
@@ -91,6 +91,7 @@ void Game::reset() {
     
     Cell size = m_field.getFieldSize();
     m_snake.reset(size.x, size.y);
+
     for (const Cell& bodyEl : m_snake.getBody()) {
         m_field.removeFreeCell(bodyEl);
     }

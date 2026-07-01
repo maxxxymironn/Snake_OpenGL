@@ -12,12 +12,11 @@
 
 inline static Action keyMap[GLFW_KEY_LAST + 1];
 
-Window::Window(InputManager* const inputManager)
-    : m_inputManager(inputManager),
+Window::Window() :
       terminated(false),
       updateTitle(false),
-      scoreTitle(0),
-      fpsTitle(-1)
+      scoreTitle(-1),
+      fpsTitle(0)
     {
     if (!glfwInit()) {
         std::cerr << "GLFW initialization failed" << std::endl;
@@ -101,7 +100,7 @@ Window::Window(InputManager* const inputManager)
     glfwSetErrorCallback(&Window::errorCallback);
     glfwSetKeyCallback(m_handle, &Window::keyCallback);
     glfwSetWindowSizeCallback(m_handle, &Window::sizeCallback);
-    //glfwSetWindowRefreshCallback(m_handle, &Window::refreshCallback);
+    glfwSetWindowRefreshCallback(m_handle, &Window::refreshCallback);
 
     mapKey();
 }
@@ -135,7 +134,7 @@ void Window::setTitle() {
 }
 
 void Window::updateScore(const bool increment) {
-    increment ? ++scoreTitle : scoreTitle = -1;
+    scoreTitle = increment ? scoreTitle + 1 : -1;
     updateTitle = true;
 }
 
@@ -194,7 +193,7 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
     if (aKey == Action::COUNT)
         return;
     
-    self->m_inputManager->setKey(aKey, action);
+    self->inputManagerSetKey(aKey, action);
 }
 
 void Window::errorCallback(const int error_code, const char *description) {
@@ -210,4 +209,13 @@ void Window::sizeCallback(GLFWwindow* window, int width, int height) {
     }
  
     glViewport((width - 800) / 2, (height - 800) / 2, 800, 800); 
+}
+
+void Window::refreshCallback(GLFWwindow* window) {
+    Window* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
+
+    if (self->refreshScreen)
+        self->refreshScreen();
+
+    glfwSwapBuffers(window);
 }

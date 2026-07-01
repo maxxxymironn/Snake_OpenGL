@@ -4,10 +4,10 @@
 #include <vector>
 
 struct Direction {
-    inline static const Cell    UP = { 0, 1 };
-    inline static const Cell  DOWN = { 0,-1 };
-    inline static const Cell RIGHT = { 1, 0 };
-    inline static const Cell  LEFT = {-1, 0 };
+    static constexpr Cell    UP = { 0, 1 };
+    static constexpr Cell  DOWN = { 0,-1 };
+    static constexpr Cell RIGHT = { 1, 0 };
+    static constexpr Cell  LEFT = {-1, 0 };
 };
 
 class Snake {

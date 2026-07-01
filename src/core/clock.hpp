@@ -16,7 +16,7 @@ class Clock {
     float gameStepAccumulator = 0;
 
     float appleBreathingCoeff = 0;
-    float snakeMovingCoeff = 0;
+    float snakeMovingCoeff = 1; // 1 cause snake head should be on its place at startGame at first time
 
     // fps
     float fpsAccumulator = 0;
@@ -24,6 +24,7 @@ class Clock {
     unsigned int prevFrames = 0;
 
     bool onPause = false;
+    bool isSnakeFreezed = true;
 
 public:
     Clock(): stepTime(CoreConfigVariables::gameSpeed) {}
@@ -42,7 +43,8 @@ public:
 
         if (!onPause) {
             gameStepAccumulator += delta.count();
-            snakeMovingCoeff = gameStepAccumulator / stepTime;
+            if (!isSnakeFreezed)
+                snakeMovingCoeff = gameStepAccumulator / stepTime;
         }
 
         delta = curTime - startTime;
@@ -72,4 +74,6 @@ public:
     void resetGameStepAccumulator() { gameStepAccumulator = 0.f; }
 
     void updatePauseStatus() { onPause = !onPause; }
+    void freezeSnake() { isSnakeFreezed = true; }
+    void unfreezeSnake() { isSnakeFreezed = false; }
 };

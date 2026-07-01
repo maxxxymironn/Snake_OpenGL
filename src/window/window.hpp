@@ -1,10 +1,11 @@
-#include "../core/input_manager.hpp"
+#include "../core/action.hpp"
+
+#include <functional>
 
 class GLFWwindow;
 
 class Window {
     GLFWwindow* m_handle = nullptr;
-    InputManager* m_inputManager;
 
     // Monitor info
     int m_mWidth;
@@ -32,15 +33,21 @@ class Window {
 
     void setTitle();
 
+    std::function<void(Action, bool)> inputManagerSetKey;
+    std::function<void()> refreshScreen;
+
     static void errorCallback(const int error_code, const char *description);
     static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
     static void sizeCallback(GLFWwindow* window, int width, int height);
-    static void refreshCallback(GLFWwindow* window) {};
+    static void refreshCallback(GLFWwindow* window);
 
 public:
-    Window(InputManager* const inputManager);
+    Window();
     ~Window() { terminate(); }
-    
+
+    void setInputManagerSetKey(std::function<void(Action, bool)> fn) { inputManagerSetKey = std::move(fn); }
+    void setRefreshCallback(std::function<void()> fn) { refreshScreen = std::move(fn); }
+
     void terminate();
 
     void close() const;

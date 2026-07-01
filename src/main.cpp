@@ -9,13 +9,18 @@
 
 void checkPressedKeys(const Window& window, Clock& clock, Game& game, InputManager& inputManager);
 void updateDir(Snake& snake, InputManager& inputManager);
+
 void drawSnake(Renderer& renderer, const Game& game, const float alpha);
 float getRotateAngle(const Cell first, const Cell second);
+void updateCellPosition(const Cell diff, const Cell fieldSize, Cell& toUpdate);
+Cell getShift(const Cell diff, const Cell fieldSize);
+
+void draw(Renderer& renderer, const Game& game, const Clock& clock);
 
 int main() {
 	ConfigManager configManager;
 	InputManager inputManager;
-	Window window(&inputManager);
+	Window window;
 	Renderer renderer;
 	if(!renderer.getInitializeInfo()) {
 		window.terminate();
@@ -24,10 +29,12 @@ int main() {
 	Game game;
 	Clock clock; // TODO: maybe class Clock should be in composition with class Game
 
-	Cell applePos = game.apple().getPosition();
-	bool readyToSaveFile = true;
+	// Cell applePos = game.apple().getPosition();
 	
 	renderer.setFieldSize(game.field().getFieldSize().x, game.field().getFieldSize().y);
+
+	window.setInputManagerSetKey([&inputManager](Action a, bool b) { inputManager.setKey(a, b); });
+	window.setRefreshCallback([&renderer, &game, &clock]() {	draw(renderer, game, clock); });
 
 	clock.start();
 	while(!window.shouldClose()) {
@@ -36,18 +43,7 @@ int main() {
 		if (clock.updateFPS())
 			window.updateFPS(clock.getPrevFrames());
 
-		/* Render part */
-		renderer.beginFrame();
-
-		renderer.useTextureProgram();
-		renderer.drawField();
-		renderer.drawApple(applePos.x, applePos.y, clock.getAppleBreathingCoeff());
-		drawSnake(renderer, game, clock.getSnakeMovingCoeff());
-		if (game.status() == GameStatus::PAUSE)
-			renderer.drawPause();
-
-		renderer.endFrame();
-		/* End render */
+		draw(renderer, game, clock);
 
 		checkPressedKeys(window, clock, game, inputManager);
 		
@@ -62,14 +58,14 @@ int main() {
 				if (game.apple().isNew()) {
 					window.updateScore();
 					game.apple().setOld();
-					applePos = game.apple().getPosition();
+					// applePos = game.apple().getPosition();
 				}
 			}
 		}
 		if (game.status() == GameStatus::LOOSE) {
-			if (readyToSaveFile) {
+			if (configManager.isReadyToSaveFile()) {
 				configManager.saveFile();
-				readyToSaveFile = false;
+				clock.freezeSnake();
 			}
 			if (clock.isUpdateTime(3.f)) {
 				game.reset();
@@ -81,12 +77,21 @@ int main() {
 		else if (game.status() == GameStatus::WIN) {
 			window.close();
 		}
-		else if (game.status() == GameStatus::GAME_START && clock.isUpdateTime(0.5f))  {
-			readyToSaveFile = true;
-			game.updateStatus(GameStatus::GAME);
-			game.update();
-			clock.resetGameStepAccumulator();
-			inputManager.turnOnBuffer();
+		else if (game.status() == GameStatus::GAME_START) {
+			if (game.apple().isNew()) {
+				window.updateScore();
+				game.apple().setOld();
+				// applePos = game.apple().getPosition();
+			}
+
+			if (clock.isUpdateTime(0.5f))  {
+				configManager.setReadyToSaveFile();
+				game.updateStatus(GameStatus::GAME);
+				game.update();
+				clock.resetGameStepAccumulator();
+				inputManager.turnOnBuffer();
+				clock.unfreezeSnake();
+			}
 		}
 		/* End logic */
 
@@ -117,6 +122,7 @@ void updateDir(Snake& snake, InputManager& inputManager) {
 			case Action::MoveDown: newDir = Direction::DOWN; break;
 			case Action::MoveLeft: newDir = Direction::LEFT; break;
 			case Action::MoveRight:newDir = Direction::RIGHT; break;
+			default: break;
 		}
 
 		if (snake.getDirection() + newDir != Cell{0, 0})
@@ -124,110 +130,190 @@ void updateDir(Snake& snake, InputManager& inputManager) {
 	}
 }
 
-void drawSnake(Renderer& renderer, const Game& game, const float alpha) {
+void drawSnake(Renderer& renderer, const Game& game, float alpha) {
 	const GameStatus gameStatus = game.status();
 	const auto snakeBody = game.snake().getBody();
 	float cellX, cellY;
 	float rotateAngle;
 
-	const Cell head = snakeBody[0];
-	Cell prevHead = snakeBody[1];
+	if (gameStatus == GameStatus::LOOSE) {
 
-	if (gameStatus == GameStatus::GAME || gameStatus == GameStatus::PAUSE) {
-		const Cell prevTail = game.snake().getPrevTail();
+	}
+	if (gameStatus != GameStatus::MENU) {
 		const Cell fieldSize = game.field().getFieldSize();
-		
-		/* static body */
-		for (auto it = snakeBody.rbegin() + 1; it + 1 != snakeBody.rend(); ++it) {
-			cellX = static_cast<float>((*it).x);
-			cellY = static_cast<float>((*it).y);
-			Cell to = *(it + 1) - *it;
-			rotateAngle = getRotateAngle(*(it + 1), *it);
 
-			if ((*(it - 1)).y == (*(it + 1)).y || (*(it - 1)).x == (*(it + 1)).x) {
-				renderer.drawSnake(cellX, cellY, SnakeType::BODY, rotateAngle);
-			} else {
-				Cell from = *(it - 1) - *(it);
-				Cell dir1 = {1, 0};
-				Cell dir2 = {0, -1};
-				Cell dir3 = {-1, 0};
-				Cell dir4 = {0, 1};
-				bool fl = (to == dir1 && from == dir2)
-						|| (to == dir2 && from == dir3)
-						|| (to == dir3 && from == dir4) 
-						|| (to == dir4 && from == dir1);
-				if (!fl) {
-					renderer.drawSnake(cellX, cellY, SnakeType::CORNER, rotateAngle);
+		bool throughBorder;
+
+		/* static body */
+		for (auto it = snakeBody.rbegin(); it + 1 != snakeBody.rend(); ++it) {
+			Cell prevCell;
+			if (it == snakeBody.rbegin())
+				prevCell = game.snake().getPrevTail();
+			else
+				prevCell = *(it - 1);
+
+			Cell nextCell = *(it + 1);
+			Cell curCell = *it;
+			
+			cellX = static_cast<float>(curCell.x);
+			cellY = static_cast<float>(curCell.y);
+
+			// без изгиба
+			if (prevCell.x == nextCell.x || prevCell.y == nextCell.y) {
+				rotateAngle = getRotateAngle(curCell, nextCell);
+				if (it == snakeBody.rbegin() && alpha > 0.5f) {
+					renderer.drawSnake(cellX, cellY, SnakeType::TAIL, rotateAngle);
+				} else if (it + 2 == snakeBody.rend() && alpha < 0.5f){
+					rotateAngle = getRotateAngle(nextCell, curCell);
+					renderer.drawSnake(cellX, cellY, SnakeType::TAIL, rotateAngle);
 				} else {
-					renderer.drawSnake(cellX, cellY, SnakeType::CORNER, rotateAngle - 1.5708f);
+					renderer.drawSnake(cellX, cellY, SnakeType::BODY, rotateAngle);
 				}
+			} 
+			// с изгибом
+			else {
+				// Определяем направление по следующему элементу тела
+				Cell to = nextCell - curCell;
+				throughBorder = to.x > 1 || to.x < -1 || to.y > 1 || to.y < -1;
+				if (throughBorder) {
+					updateCellPosition(to, fieldSize, nextCell);
+					to = nextCell - curCell;
+				}
+				rotateAngle = getRotateAngle(nextCell, curCell);
+
+				// Определяем направление по предыдущему элементу тела
+				Cell from = prevCell - curCell;
+				throughBorder = from.x > 1 || from.x < -1 || from.y > 1 || from.y < -1;
+				if (throughBorder) {
+					updateCellPosition(from, fieldSize, prevCell);
+					from = prevCell - curCell;
+				}
+
+				bool isClockWiseDir = (to == Direction::RIGHT && from == Direction::DOWN)
+					   			   || (to == Direction::DOWN && from == Direction::LEFT)
+								   || (to == Direction::LEFT && from == Direction::UP) 
+								   || (to == Direction::UP && from == Direction::RIGHT);
+				if (isClockWiseDir)
+					rotateAngle -= 1.5708f;
+				renderer.drawSnake(cellX, cellY, SnakeType::CORNER, rotateAngle);
 			}
 		}
 
-		/* dynamic tail */
+		/* ====================== dynamic tail ====================== */
 		Cell tail = *snakeBody.rbegin();
+		Cell prevTail = game.snake().getPrevTail();
 
+		// prevTail = tail;	// <-- delete this to fix static tail
 		Cell diff = tail - prevTail;
-		// check to move through borders for tail
-		if (diff.x > 1 || diff.x < -1) {
-			tail.x = (diff.x > 1) ? -1 : fieldSize.x;
-		} else if (diff.y > 1 || diff.y < -1) {
-			tail.y = (diff.y > 1) ? -1 : fieldSize.y;
-		}
+		Cell shift = getShift(diff, fieldSize);
 
-		diff = tail - prevTail;
+		throughBorder = diff.x > 1 || diff.x < -1 || diff.y > 1 || diff.y < -1;
+		if (throughBorder) {
+			updateCellPosition(diff, fieldSize, tail);
+			diff = tail - prevTail;
+		}
 		cellX = static_cast<float>(prevTail.x) + static_cast<float>(diff.x) * alpha;
 		cellY = static_cast<float>(prevTail.y) + static_cast<float>(diff.y) * alpha;
-		rotateAngle = getRotateAngle(prevTail, tail);
-		renderer.drawSnake(cellX, cellY, SnakeType::TAIL, rotateAngle);
 
-		/* dynamic head */
-		diff = head - prevHead;
-		// check to move through borders for head
-		if (diff.x > 1 || diff.x < -1) {
-			prevHead.x = (diff.x > 1) ? fieldSize.x : -1;
-		} else if (diff.y > 1 || diff.y < -1) {
-			prevHead.y = (diff.y > 1) ? fieldSize.y : -1;
+		const bool isAppleEaten = diff == Cell{0, 0};
+		if (isAppleEaten) {
+			prevTail = *(snakeBody.rbegin() + 1);
+			std::swap(tail, prevTail);
 		}
 
+		rotateAngle = getRotateAngle(tail, prevTail) + 3.1416f;
+
+		renderer.drawSnake(cellX, cellY, SnakeType::TAIL, rotateAngle);
+		if (throughBorder)
+			renderer.drawSnake(cellX + shift.x, cellY + shift.y, SnakeType::TAIL, rotateAngle);
+
+		/* ====================== dynamic head ====================== */
+		Cell head = *snakeBody.begin();
+		Cell prevHead = *(snakeBody.begin() + 1);
+
 		diff = head - prevHead;
+		shift = getShift(diff, fieldSize);
+
+		throughBorder = diff.x > 1 || diff.x < -1 || diff.y > 1 || diff.y < -1;
+		if (throughBorder) {
+			updateCellPosition(diff, fieldSize, head);
+			diff = head - prevHead;
+		}
+
+		/* ====================== corner beetwen head and tail ====================== */
+		// if (snakeBody.size() == 2) {
+		// 	if (prevTail.x != head.x && prevTail.y != head.y) {
+		// 		rotateAngle = getRotateAngle(head, tail);
+		// 		cellX = static_cast<float>(tail.x);
+		// 		cellY = static_cast<float>(tail.y);
+
+		// 		Cell to = head - tail;
+		// 		Cell from = prevTail - tail;
+		// 		bool isClockWiseDir = (to == Direction::RIGHT && from == Direction::DOWN)
+		// 			   			   || (to == Direction::DOWN && from == Direction::LEFT)
+		// 						   || (to == Direction::LEFT && from == Direction::UP) 
+		// 						   || (to == Direction::UP && from == Direction::RIGHT);
+		// 		if (isClockWiseDir)
+		// 			rotateAngle -= 1.5708f;
+		// 		renderer.drawSnake(cellX, cellY, SnakeType::CORNER, rotateAngle);
+		// 	}
+		// }
+		/* ============================================ */
+
 		cellX = static_cast<float>(prevHead.x) + static_cast<float>(diff.x) * alpha;
 		cellY = static_cast<float>(prevHead.y) + static_cast<float>(diff.y) * alpha;
-		rotateAngle = getRotateAngle(head, prevHead);
-		renderer.drawSnake(cellX, cellY, SnakeType::HEAD, rotateAngle);
-	} 
-	else if (gameStatus == GameStatus::LOOSE) {
 
-	}
-	else {
-		cellX = static_cast<float>(head.x);
-		cellY = static_cast<float>(head.y);
-		// TODO: use snake direction to set head rotate angle
 		rotateAngle = getRotateAngle(head, prevHead);
+		
 		renderer.drawSnake(cellX, cellY, SnakeType::HEAD, rotateAngle);
-
-		for (const Cell& bodyEl : snakeBody) {
-			cellX = static_cast<float>(bodyEl.x);
-			cellY = static_cast<float>(bodyEl.y);
-			renderer.drawSnake(cellX, cellY, SnakeType::BODY, 0);
-		}
+		if (throughBorder)
+			renderer.drawSnake(cellX + shift.x, cellY + shift.y, SnakeType::HEAD, rotateAngle);
 	}
 }
 
 float getRotateAngle(const Cell first, const Cell second) {
 	float piDiv2 = 1.5708;
 	float pi = 3.1416;
-	Cell left = {-1, 0};
-	Cell up = {0, 1};
-	Cell down = {0, -1};
 
 	Cell diff = first - second;
-	if (diff == up) {
+	if (diff.y > 0) {
 		return piDiv2;
-	} else if (diff == left) {
+	} else if (diff.x < 0) {
 		return pi;
-	} else if (diff == down) {
+	} else if (diff.y < 0) {
 		return -piDiv2;
 	}
 	return 0;
+}
+
+void updateCellPosition(const Cell diff, const Cell fieldSize, Cell& toUpdate) {
+	if (diff.x > 1 || diff.x < -1)
+		toUpdate.x = (diff.x > 1) ? -1 : fieldSize.x;
+	else
+		toUpdate.y = (diff.y > 1) ? -1 : fieldSize.y;
+}
+
+Cell getShift(const Cell diff, const Cell fieldSize) {
+	Cell shift{0, 0};
+
+	if (diff.x > 1 || diff.x < -1)
+		shift.x = (diff.x > 1) ? fieldSize.x : -fieldSize.x;
+	else
+		shift.y = (diff.y > 1) ? fieldSize.y : -fieldSize.y;
+
+	return shift;
+}
+
+void draw(Renderer& renderer, const Game& game, const Clock& clock) {
+	renderer.beginFrame();
+	renderer.useTextureProgram();
+
+	renderer.drawField();
+	Cell applePos = game.apple().getPosition();
+	renderer.drawApple(applePos.x, applePos.y, clock.getAppleBreathingCoeff());
+	drawSnake(renderer, game, clock.getSnakeMovingCoeff());
+	if (game.status() == GameStatus::PAUSE)
+		renderer.drawPause();
+
+	renderer.endFrame();
 }
