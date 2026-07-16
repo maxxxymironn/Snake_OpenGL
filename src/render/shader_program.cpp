@@ -1,5 +1,5 @@
 #include "shader_program.hpp"
-#include <iostream>
+#include "../core/logger.hpp"
 
 ShaderProgram::ShaderProgram(const char* vertSource, const char* fragSource)
     : createSuccess(true) {
@@ -22,7 +22,8 @@ GLuint ShaderProgram::createShader(GLenum typeShader, const char*& shaderSource,
 
     glGetShaderiv(shaderID, GL_COMPILE_STATUS, &success);
     if (!success) {
-        std::cout << "ERROR::SHADER::" << (isVertexShader ? "VERTEX" : "FRAGMENT") << "::COMPILATION_FAILED" << std::endl;
+        Logger::getInstance().printError("SHADER", "COMPILATION_FAILED");
+        // std::cout << "ERROR::SHADER::" << (isVertexShader ? "VERTEX" : "FRAGMENT") << "::COMPILATION_FAILED" << std::endl;
         createSuccess = false;
     }
 
@@ -37,7 +38,8 @@ void ShaderProgram::createProgram(const GLenum vertShaderID, const GLenum fragSh
 
     glGetProgramiv(ID, GL_LINK_STATUS, &success);
     if (!success) {
-        std::cout << "ERROR::SHADER_PROGRAM::LINK_FAILED" << std::endl;
+        Logger::getInstance().printError("SHADER_PROGRAM", "LINK_FAILED");
+        // std::cout << "ERROR::SHADER_PROGRAM::LINK_FAILED" << std::endl;
         createSuccess = false;
     }
 

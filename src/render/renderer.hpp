@@ -36,8 +36,13 @@ private:
     GLuint snakeHeadTex = 0;
     GLuint snakeTailTex = 0;
     GLuint snakeTurnTex = 0;
+    GLuint tailTailTex = 0;
+    GLuint capTex = 0;
+    GLuint tailCornerTex = 0;
+    GLuint eyeTex = 0;
+    GLuint eyePointTex = 0;
     
-    GLuint snakeAtlasTex = 0;
+    // GLuint snakeAtlasTex = 0;
 
     float NDCcellWidth;
     float NDCcellHeight;
@@ -45,7 +50,13 @@ private:
     void init();
 
     void generateTextures();
-    void generateTextureObject(GLuint& texture, const unsigned char textureArray[], GLsizei textureWidth, GLsizei textureHeight);
+    void generateTextureObject(
+        GLuint& texture, 
+        const unsigned char textureArray[], 
+        GLsizei textureWidth, 
+        GLsizei textureHeight,
+        bool isRepeatingWrap=false
+    );
 
 public:
     Renderer();
@@ -64,6 +75,7 @@ public:
     void drawPause();
     void drawApple(const float x, const float y, const float scale);
     void drawSnake(const float x, const float y, const SnakeType snakeType, const float rotateAngle);
+    void drawEyes(const float x, const float y, const float eyeAngle, const float eyePointAngle=0.f);
 
     void drawObject(const GLfloat* const modelPtr, const bool useBlend, const GLuint texture, const float textureSize=1.f);
 };

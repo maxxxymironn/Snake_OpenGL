@@ -10,9 +10,14 @@
 #include "textures/snake_head_texture.hpp"
 #include "textures/snake_tail_texture.hpp"
 #include "textures/snake_turn_texture.hpp"
-#include "textures/snake_atlas.hpp"
+#include "textures/tail-tail_texture.hpp"
+#include "textures/cap_texture.hpp"
+#include "textures/tail-corner_texture.hpp"
+#include "textures/eye_texture.hpp"
+#include "textures/eye-point_texture.hpp"
 
 #include <glad/glad.h>
+#include <glm/ext/quaternion_transform.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -116,7 +121,8 @@ void Renderer::generateTextures() {
     // field texture
     GLsizei fieldTexWidth = 80;
     GLsizei fieldTexHeight = 80;
-    generateTextureObject(fieldTex, fieldPixels, fieldTexWidth, fieldTexHeight);
+    bool isRepeatingWrap = true;
+    generateTextureObject(fieldTex, fieldPixels, fieldTexWidth, fieldTexHeight, isRepeatingWrap);
 
     // apple texture 
     GLsizei appleTexWidth = 48;
@@ -128,33 +134,39 @@ void Renderer::generateTextures() {
     GLsizei pauseTexHeight = 200;
     generateTextureObject(pauseTex, pausePixels, pauseTexWidth, pauseTexHeight);
 
-    // snake body texture
+    // snake texture
     GLsizei snakePartTexSize = 40;
     generateTextureObject(snakeBodyTex, snakeBodyPixels, snakePartTexSize, snakePartTexSize);
-    // snake head texture
     generateTextureObject(snakeHeadTex, snakeHeadPixels, snakePartTexSize, snakePartTexSize);
-    // snake tail texture
     generateTextureObject(snakeTailTex, snakeTailPixels, snakePartTexSize, snakePartTexSize);
-    // snake turn texture
     generateTextureObject(snakeTurnTex, snakeTurnPixels, snakePartTexSize, snakePartTexSize);
-
-    GLsizei snakeAtlasWidth = 80;
-    GLsizei snakeAtlasHeight = 80;
-    generateTextureObject(snakeAtlasTex, snakeAtlasPixels, snakeAtlasWidth, snakeAtlasHeight);
+    // extra snake texture
+    generateTextureObject(tailTailTex, tailTailPixels, snakePartTexSize, snakePartTexSize);
+    generateTextureObject(capTex, capPixels, snakePartTexSize, snakePartTexSize);
+    generateTextureObject(tailCornerTex, TailCornerPixels, snakePartTexSize, snakePartTexSize);
+    GLsizei snakeEyeTexSize = 13;
+    generateTextureObject(eyeTex, eyePixels, snakeEyeTexSize, snakeEyeTexSize);
+    generateTextureObject(eyePointTex, eyePointPixels, snakeEyeTexSize, snakeEyeTexSize);
 }
 
 void Renderer::generateTextureObject(
         GLuint& texture, 
         const unsigned char textureArray[], 
         GLsizei textureWidth, 
-        GLsizei textureHeight
+        GLsizei textureHeight,
+        bool isRepeatingWrap
     ) {
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
 
     // setting repeat texture (that was GL_CLAMP_TO_BORDER)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    if (!isRepeatingWrap) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    } else {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    }
     // setting filter texture
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -213,6 +225,17 @@ void Renderer::drawApple(const float x, const float y, const float scale) {
 
 // TODO: set default snakeType = BODY
 void Renderer::drawSnake(const float x, const float y, const SnakeType snakeType, const float rotateAngle) {
+    GLuint snakePartTex;
+    switch(snakeType) {
+        case SnakeType::BODY: snakePartTex = snakeBodyTex; break;
+        case SnakeType::HEAD: snakePartTex = snakeHeadTex; break;
+        case SnakeType::TAIL: snakePartTex = snakeTailTex; break;
+        case SnakeType::CORNER: snakePartTex = snakeTurnTex; break;
+        case SnakeType::TAIL_TAIL: snakePartTex = tailTailTex; break;
+        case SnakeType::CAP: snakePartTex = capTex; break;
+        case SnakeType::TAIL_CORNER: snakePartTex = tailCornerTex; break;
+    }
+
     glm::mat4 model(1.0f);
     model = glm::translate(model, glm::vec3(
         x * NDCcellWidth + NDCcellWidth / 2.f,
@@ -223,16 +246,46 @@ void Renderer::drawSnake(const float x, const float y, const SnakeType snakeType
     // rotate in radians (pi, 2pi, 3pi etc.)
     model = glm::rotate(model, rotateAngle, {0, 0, 1.f});
 
-    GLuint snakePartTex;
-    switch(snakeType) {
-        case SnakeType::BODY: snakePartTex = snakeBodyTex; break;
-        case SnakeType::HEAD: snakePartTex = snakeHeadTex; break;
-        case SnakeType::TAIL: snakePartTex = snakeTailTex; break;
-        case SnakeType::CORNER: snakePartTex = snakeTurnTex; break;
-    }
-
     bool useBlend = true;
     drawObject(glm::value_ptr(model), useBlend, snakePartTex);
+}
+
+void Renderer::drawEyes(const float x, const float y, const float eyeAngle, const float eyePointAngle) {
+    constexpr bool useBlend = true;
+    constexpr float xEyeOffsetPxl = 0.02;
+    constexpr float yEyeOffsetPxl = 0.015;
+    
+    glm::mat4 model(1.f);
+    model = glm::translate(model, glm::vec3(
+        x * NDCcellWidth,
+        y * NDCcellHeight,
+        0.f
+    ));
+    model = glm::translate(model, glm::vec3(
+        NDCcellHeight / 2.f,
+        NDCcellHeight / 2.f,
+        0.f
+    ));
+    model = glm::rotate(model, eyeAngle, {0.f, 0.f, 1.f});
+    model = glm::translate(model, glm::vec3( 
+        -NDCcellHeight / 2.f,
+        -NDCcellHeight / 2.f,
+        0.f
+    )); 
+    model = glm::translate(model, glm::vec3(xEyeOffsetPxl, yEyeOffsetPxl, 0.f));
+
+    glm::mat4 model2(model);
+    model2 = glm::translate(model2, glm::vec3(0.f, 0.07f, 0.f));
+
+    model = glm::rotate(model, eyePointAngle, {0.f, 0.f, 1.f});
+    model = scale(model, glm::vec3(NDCcellWidth / 6.154f));
+    model2 = glm::rotate(model2, eyePointAngle, {0.f, 0.f, 1.f});
+    model2 = scale(model2, glm::vec3(NDCcellWidth / 6.154f));
+    drawObject(value_ptr(model), useBlend, eyeTex);
+    drawObject(value_ptr(model2), useBlend, eyeTex);
+
+    drawObject(value_ptr(model), useBlend, eyePointTex);
+    drawObject(value_ptr(model2), useBlend, eyePointTex);
 }
 
 void Renderer::drawPause() {

@@ -3,7 +3,9 @@
 #include "core_config.hpp"
 #include "game_config.hpp"
 #include "window_config.hpp"
+#include "../core/logger.hpp"
 
+#include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <fstream>
@@ -19,8 +21,7 @@
 #endif
 
 static void printError(const std::string& description) {
-    const static std::string preamble = "ERROR::CONFIG_MANAGER: ";
-    std::cerr << preamble << description << "\n";
+    Logger::getInstance().printError("CONFIG_MANAGER", description.c_str());
 }
 
 static bool tryRead(int& iValue, const std::string& sValue, const std::string& configVarName) {
@@ -35,14 +36,15 @@ static bool tryRead(int& iValue, const std::string& sValue, const std::string& c
 
 ConfigManager::ConfigManager() : file(getFilePath()), readyToSaveFile(true) {
     if (!readFile())
-        printError("config file aren't readed. Settings are set to default");
+        printError("file not readed. Settings set default");
 }
 
 ConfigManager::~ConfigManager() {
     if (!saveFile())
-        printError("config file aren't saved");
+        printError("file not saved");
 }
 
+#ifdef _WIN32
 std::filesystem::path ConfigManager::getFilePath() {
     PWSTR pszPath = nullptr;
     HRESULT hr = SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &pszPath);
@@ -61,6 +63,27 @@ std::filesystem::path ConfigManager::getFilePath() {
 
     return filePath / "config.txt";
 }
+#elif __linux__
+std::filesystem::path ConfigManager::getFilePath() {
+    namespace fs = std::filesystem;
+
+    fs::path dirPath = fs::current_path();
+
+    const char* dirPathStr = std::getenv("XDG_CONFIG_HOME");
+    if (!dirPathStr || dirPathStr[0] == '\0') {
+        dirPathStr = std::getenv("HOME");
+        if (dirPathStr)
+            dirPath = fs::path(dirPathStr) / ".config" / "Snake_OpenGL";
+    } else {
+        dirPath = fs::path(dirPathStr) / "Snake_OpenGL";
+    }
+
+    if (!fs::exists(dirPath))
+        fs::create_directories(dirPath);
+
+    return dirPath / "config";
+}
+#endif
 
 bool ConfigManager::readFile() {
     std::ifstream in(file);

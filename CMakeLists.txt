@@ -42,6 +42,7 @@ target_sources(snake PRIVATE
     src/game/snake.cpp
     src/config/config_manager.cpp
     src/core/input_manager.cpp
+    src/core/logger.cpp
 )
 
 # ===========================
@@ -61,6 +62,7 @@ target_include_directories(glad SYSTEM PUBLIC
 # ===========================
 # GLFW (haves CMakeLists.txt)
 # ===========================
+
 set(GLFW_BUILD_DOCS OFF)
 set(GLFW_BUILD_TESTS OFF)
 set(GLFW_BUILD_EXAMPLES OFF)
@@ -68,9 +70,7 @@ set(GLFW_BUILD_EXAMPLES OFF)
 # just include its CMakeLists.txt
 add_subdirectory(external/glfw SYSTEM)
 
-# ===========================
 # GLM (headers only)
-# ===========================
 target_include_directories(snake SYSTEM PRIVATE 
     external/glm
 )
@@ -78,6 +78,7 @@ target_include_directories(snake SYSTEM PRIVATE
 # ===========================
 # Link libraries to exe
 # ===========================
+
 target_link_libraries(snake
     PRIVATE
         glad

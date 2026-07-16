@@ -3,11 +3,11 @@
 #include "../render/textures/apple_texture.hpp"
 #include "../core/action.hpp"
 #include "../config/window_config.hpp"
+#include "../core/logger.hpp"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h> // after glad
 
-#include <iostream>
 #include <string>
 
 inline static Action keyMap[GLFW_KEY_LAST + 1];
@@ -19,7 +19,7 @@ Window::Window() :
       fpsTitle(0)
     {
     if (!glfwInit()) {
-        std::cerr << "GLFW initialization failed" << std::endl;
+        Logger::getInstance().printError("Window", "GLFW_initialization_failed");
         exit(1);
     }
 
@@ -52,7 +52,7 @@ Window::Window() :
         nullptr
     );
     if (!m_handle) {
-        std::cerr << "GLFW: window creation failed" << std::endl;
+        Logger::getInstance().printError("Window", "GLFW_window_creation_failed");
         terminate();
         exit(1);
     }
@@ -66,7 +66,7 @@ Window::Window() :
 
     // Load OpenGL funcs
     if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-        std::cerr << "GLAD: loading process failed." << std::endl;
+        Logger::getInstance().printError("Window", "GLFW_load_OpenGL_funcs_failed");
         terminate();
         exit(1);
     }
@@ -93,14 +93,14 @@ Window::Window() :
         glViewport((m_width - 800) / 2, (m_height - 800) / 2, 800, 800);
     }
 
-    glfwSwapInterval(1);
-    glfwShowWindow(m_handle);
-
     // Callback funcs
+    glfwSetWindowSizeCallback(m_handle, &Window::sizeCallback);
     glfwSetErrorCallback(&Window::errorCallback);
     glfwSetKeyCallback(m_handle, &Window::keyCallback);
-    glfwSetWindowSizeCallback(m_handle, &Window::sizeCallback);
     glfwSetWindowRefreshCallback(m_handle, &Window::refreshCallback);
+
+    glfwSwapInterval(1);
+    glfwShowWindow(m_handle);
 
     mapKey();
 }
@@ -197,7 +197,8 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
 }
 
 void Window::errorCallback(const int error_code, const char *description) {
-    std::cerr << "ERROR: " << error_code << "\nDESCRIPTION: " << description;
+    std::string strDescription = "(" + std::to_string(error_code) + ") " + description;
+    Logger::getInstance().printError("WINDOW", strDescription.c_str());
 }
 
 void Window::sizeCallback(GLFWwindow* window, int width, int height) {

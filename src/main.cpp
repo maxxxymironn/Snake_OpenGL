@@ -3,9 +3,13 @@
 #include "core/input_manager.hpp"
 #include "game/enums.hpp"
 #include "game/game.hpp"
+#include "game/snake.hpp"
 #include "game/snake_parts_enum.hpp"
 #include "render/renderer.hpp"
 #include "window/window.hpp"
+
+#include <cmath>
+#include <iostream>
 
 void checkPressedKeys(const Window& window, Clock& clock, Game& game, InputManager& inputManager);
 void updateDir(Snake& snake, InputManager& inputManager);
@@ -33,7 +37,11 @@ int main() {
 	
 	renderer.setFieldSize(game.field().getFieldSize().x, game.field().getFieldSize().y);
 
-	window.setInputManagerSetKey([&inputManager](Action a, bool b) { inputManager.setKey(a, b); });
+	window.setInputManagerSetKey(
+		[&inputManager](Action actionKey, bool isPressed) {
+			inputManager.setKey(actionKey, isPressed);
+		}
+	);
 	window.setRefreshCallback([&renderer, &game, &clock]() {	draw(renderer, game, clock); });
 
 	clock.start();
@@ -143,6 +151,105 @@ void drawSnake(Renderer& renderer, const Game& game, float alpha) {
 		const Cell fieldSize = game.field().getFieldSize();
 
 		bool throughBorder;
+		bool specificTailDraw = false;
+		bool specificHeadDraw = false;
+		bool tailThroughBorder = false;
+		bool headThroughBorder = false;
+
+		Cell prevCell = game.snake().getPrevTail();
+		Cell nextCell = *(snakeBody.rbegin() + 1);
+
+		if (prevCell.x != nextCell.x && prevCell.y != nextCell.y)
+			specificTailDraw = true;
+
+		/* ====================== dynamic tail ====================== */
+		Cell tail = *snakeBody.rbegin();
+		Cell prevTail = game.snake().getPrevTail();
+
+		// prevTail = tail;	// <-- delete this to fix static tail
+		Cell diff = tail - prevTail;
+		Cell shift = getShift(diff, fieldSize);
+
+		throughBorder = diff.x > 1 || diff.x < -1 || diff.y > 1 || diff.y < -1;
+		if (throughBorder) {
+			updateCellPosition(diff, fieldSize, tail);
+			diff = tail - prevTail;
+			tailThroughBorder = true;
+		}
+		cellX = static_cast<float>(prevTail.x) + static_cast<float>(diff.x) * alpha;
+		cellY = static_cast<float>(prevTail.y) + static_cast<float>(diff.y) * alpha;
+
+		const bool isAppleEaten = diff == Cell{0, 0};
+		if (isAppleEaten) {
+			prevTail = *(snakeBody.rbegin() + 1);
+			std::swap(tail, prevTail);
+		}
+
+		rotateAngle = getRotateAngle(tail, prevTail) + 3.1416f;
+
+		if (specificTailDraw) { 	// shift needed for 
+			if (alpha < 0.5f) {
+				renderer.drawSnake(cellX + shift.x, cellY + shift.y, SnakeType::TAIL, rotateAngle);
+			} else if (alpha < 0.875f) {
+				renderer.drawSnake(cellX + shift.x, cellY + shift.y, SnakeType::TAIL_TAIL, rotateAngle);
+			} else {
+				rotateAngle += 3.14159f;
+				renderer.drawSnake(cellX + shift.x, cellY + shift.y, SnakeType::CAP, rotateAngle);
+			}
+		} else
+			renderer.drawSnake(cellX, cellY, SnakeType::TAIL, rotateAngle);
+		if (throughBorder && !specificTailDraw)
+			renderer.drawSnake(cellX + shift.x, cellY + shift.y, SnakeType::TAIL, rotateAngle);
+		else if (throughBorder && specificTailDraw)
+			renderer.drawSnake(cellX, cellY, SnakeType::TAIL, rotateAngle);
+
+		/* ====================== dynamic head ====================== */
+		Cell head = *snakeBody.begin();
+		Cell prevHead = *(snakeBody.begin() + 1);
+
+		nextCell = head;
+		auto checkCell = snakeBody.begin() + 1;
+		if (checkCell + 1 == snakeBody.end())
+			prevCell = game.snake().getPrevTail();
+		else
+			prevCell = *(checkCell + 1);
+
+		if (prevCell.x != nextCell.x && prevCell.y != nextCell.y)
+			specificHeadDraw = true;
+
+		diff = head - prevHead;
+		shift = getShift(diff, fieldSize);
+
+		throughBorder = diff.x > 1 || diff.x < -1 || diff.y > 1 || diff.y < -1;
+		if (throughBorder) {
+			updateCellPosition(diff, fieldSize, head);
+			diff = head - prevHead;
+			headThroughBorder = true;
+
+		}
+
+		cellX = static_cast<float>(prevHead.x) + static_cast<float>(diff.x) * alpha;
+		cellY = static_cast<float>(prevHead.y) + static_cast<float>(diff.y) * alpha;
+		float eyeX = cellX;
+		float eyeY = cellY;
+
+		rotateAngle = getRotateAngle(head, prevHead);
+		float eyeRotateAngle = rotateAngle;
+		
+		if (specificHeadDraw) {
+			if (alpha < 0.125f) {
+				rotateAngle += 3.14159f;
+				renderer.drawSnake(cellX, cellY, SnakeType::CAP, rotateAngle);
+			} else if (alpha < 0.5f) {
+				renderer.drawSnake(cellX, cellY, SnakeType::TAIL_TAIL, rotateAngle);
+			} else {
+				renderer.drawSnake(cellX, cellY, SnakeType::TAIL, rotateAngle);
+			}
+		} else
+			renderer.drawSnake(cellX, cellY, SnakeType::TAIL, rotateAngle);
+		if (throughBorder)
+			renderer.drawSnake(cellX + shift.x, cellY + shift.y, SnakeType::TAIL, rotateAngle);
+		/* ================================== */
 
 		/* static body */
 		for (auto it = snakeBody.rbegin(); it + 1 != snakeBody.rend(); ++it) {
@@ -161,17 +268,72 @@ void drawSnake(Renderer& renderer, const Game& game, float alpha) {
 			// без изгиба
 			if (prevCell.x == nextCell.x || prevCell.y == nextCell.y) {
 				rotateAngle = getRotateAngle(curCell, nextCell);
-				if (it == snakeBody.rbegin() && alpha > 0.5f) {
-					renderer.drawSnake(cellX, cellY, SnakeType::TAIL, rotateAngle);
-				} else if (it + 2 == snakeBody.rend() && alpha < 0.5f){
+				if (it + 2 == snakeBody.rend() && alpha < 0.5f){
 					rotateAngle = getRotateAngle(nextCell, curCell);
+					if (headThroughBorder)
+						rotateAngle += 3.14159f;
 					renderer.drawSnake(cellX, cellY, SnakeType::TAIL, rotateAngle);
-				} else {
+				}
+				else if (it == snakeBody.rbegin() && alpha > 0.5f) {
+					Cell diff = *(it+1) - *it;
+					if (abs(diff.x) > 1 || abs(diff.y) > 1)
+						rotateAngle += 3.14159f;
+					renderer.drawSnake(cellX, cellY, SnakeType::TAIL, rotateAngle);
+				}  
+				else if (*it == game.snake().getPrevTail()) {
+					renderer.drawSnake(cellX, cellY, SnakeType::TAIL, rotateAngle);
+				} 
+				else {
 					renderer.drawSnake(cellX, cellY, SnakeType::BODY, rotateAngle);
 				}
 			} 
+			// с изгибом хвоста
+			else if (prevCell == game.snake().getPrevTail() && snakeBody.back() != game.snake().getPrevTail()) {
+				specificTailDraw = true;
+				// Определяем направление по следующему элементу тела
+				Cell to = nextCell - curCell;
+				throughBorder = to.x > 1 || to.x < -1 || to.y > 1 || to.y < -1;
+				if (throughBorder) {
+					updateCellPosition(to, fieldSize, nextCell);
+					to = nextCell - curCell;
+				}
+				rotateAngle = getRotateAngle(nextCell, curCell);
+
+				// Определяем направление по предыдущему элементу тела
+				Cell from = prevCell - curCell;
+				throughBorder = from.x > 1 || from.x < -1 || from.y > 1 || from.y < -1;
+				if (throughBorder) {
+					updateCellPosition(from, fieldSize, prevCell);
+					from = prevCell - curCell;
+				}
+				bool isClockWiseDir = (to == Direction::RIGHT && from == Direction::DOWN)
+					   			   || (to == Direction::DOWN && from == Direction::LEFT)
+								   || (to == Direction::LEFT && from == Direction::UP) 
+								   || (to == Direction::UP && from == Direction::RIGHT);
+				if (alpha < 0.7) {
+					if (nextCell == *snakeBody.begin()) {
+						if (alpha < 0.34) {
+							if (isClockWiseDir)
+								rotateAngle -= 1.5708f;
+							else
+								rotateAngle += 1.5708f;
+							renderer.drawSnake(cellX, cellY, SnakeType::TAIL_CORNER, rotateAngle);
+						} else {
+							if (isClockWiseDir)
+								rotateAngle -= 1.5708f;
+							renderer.drawSnake(cellX, cellY, SnakeType::CORNER, rotateAngle);
+						}
+					} else {
+						if (isClockWiseDir)
+							rotateAngle -= 1.5708f;
+						renderer.drawSnake(cellX, cellY, SnakeType::CORNER, rotateAngle);
+					}
+				} else {
+					renderer.drawSnake(cellX, cellY, SnakeType::TAIL_CORNER, rotateAngle);
+				}
+			}
 			// с изгибом
-			else {
+			else if (nextCell != *snakeBody.begin()) {
 				// Определяем направление по следующему элементу тела
 				Cell to = nextCell - curCell;
 				throughBorder = to.x > 1 || to.x < -1 || to.y > 1 || to.y < -1;
@@ -197,77 +359,59 @@ void drawSnake(Renderer& renderer, const Game& game, float alpha) {
 					rotateAngle -= 1.5708f;
 				renderer.drawSnake(cellX, cellY, SnakeType::CORNER, rotateAngle);
 			}
+			// с изгибом головы?
+			else {
+				// Определяем направление по следующему элементу тела
+				Cell to = nextCell - curCell;
+				throughBorder = to.x > 1 || to.x < -1 || to.y > 1 || to.y < -1;
+				if (throughBorder) {
+					updateCellPosition(to, fieldSize, nextCell);
+					to = nextCell - curCell;
+				}
+				rotateAngle = getRotateAngle(nextCell, curCell);
+
+				// Определяем направление по предыдущему элементу тела
+				Cell from = prevCell - curCell;
+				throughBorder = from.x > 1 || from.x < -1 || from.y > 1 || from.y < -1;
+				if (throughBorder) {
+					updateCellPosition(from, fieldSize, prevCell);
+					from = prevCell - curCell;
+				}
+
+				bool isClockWiseDir = (to == Direction::RIGHT && from == Direction::DOWN)
+					   			   || (to == Direction::DOWN && from == Direction::LEFT)
+								   || (to == Direction::LEFT && from == Direction::UP) 
+								   || (to == Direction::UP && from == Direction::RIGHT);
+				
+				if (alpha < 0.34) {
+					if (isClockWiseDir)
+						rotateAngle -= 1.5708f;
+					else
+						rotateAngle += 1.5708f;
+					renderer.drawSnake(cellX, cellY, SnakeType::TAIL_CORNER, rotateAngle);
+				} else {
+					if (isClockWiseDir)
+						rotateAngle -= 1.5708f;
+					renderer.drawSnake(cellX, cellY, SnakeType::CORNER, rotateAngle);
+				}
+			}
 		}
 
-		/* ====================== dynamic tail ====================== */
-		Cell tail = *snakeBody.rbegin();
-		Cell prevTail = game.snake().getPrevTail();
-
-		// prevTail = tail;	// <-- delete this to fix static tail
-		Cell diff = tail - prevTail;
-		Cell shift = getShift(diff, fieldSize);
-
-		throughBorder = diff.x > 1 || diff.x < -1 || diff.y > 1 || diff.y < -1;
-		if (throughBorder) {
-			updateCellPosition(diff, fieldSize, tail);
-			diff = tail - prevTail;
-		}
-		cellX = static_cast<float>(prevTail.x) + static_cast<float>(diff.x) * alpha;
-		cellY = static_cast<float>(prevTail.y) + static_cast<float>(diff.y) * alpha;
-
-		const bool isAppleEaten = diff == Cell{0, 0};
-		if (isAppleEaten) {
-			prevTail = *(snakeBody.rbegin() + 1);
-			std::swap(tail, prevTail);
-		}
-
-		rotateAngle = getRotateAngle(tail, prevTail) + 3.1416f;
-
-		renderer.drawSnake(cellX, cellY, SnakeType::TAIL, rotateAngle);
-		if (throughBorder)
-			renderer.drawSnake(cellX + shift.x, cellY + shift.y, SnakeType::TAIL, rotateAngle);
-
-		/* ====================== dynamic head ====================== */
-		Cell head = *snakeBody.begin();
-		Cell prevHead = *(snakeBody.begin() + 1);
-
-		diff = head - prevHead;
-		shift = getShift(diff, fieldSize);
-
-		throughBorder = diff.x > 1 || diff.x < -1 || diff.y > 1 || diff.y < -1;
-		if (throughBorder) {
-			updateCellPosition(diff, fieldSize, head);
-			diff = head - prevHead;
-		}
-
-		/* ====================== corner beetwen head and tail ====================== */
-		// if (snakeBody.size() == 2) {
-		// 	if (prevTail.x != head.x && prevTail.y != head.y) {
-		// 		rotateAngle = getRotateAngle(head, tail);
-		// 		cellX = static_cast<float>(tail.x);
-		// 		cellY = static_cast<float>(tail.y);
-
-		// 		Cell to = head - tail;
-		// 		Cell from = prevTail - tail;
-		// 		bool isClockWiseDir = (to == Direction::RIGHT && from == Direction::DOWN)
-		// 			   			   || (to == Direction::DOWN && from == Direction::LEFT)
-		// 						   || (to == Direction::LEFT && from == Direction::UP) 
-		// 						   || (to == Direction::UP && from == Direction::RIGHT);
-		// 		if (isClockWiseDir)
-		// 			rotateAngle -= 1.5708f;
-		// 		renderer.drawSnake(cellX, cellY, SnakeType::CORNER, rotateAngle);
-		// 	}
-		// }
-		/* ============================================ */
-
-		cellX = static_cast<float>(prevHead.x) + static_cast<float>(diff.x) * alpha;
-		cellY = static_cast<float>(prevHead.y) + static_cast<float>(diff.y) * alpha;
-
-		rotateAngle = getRotateAngle(head, prevHead);
+		Cell applePos = game.apple().getPosition();
+		float yPart = eyeY - static_cast<float>(applePos.y);
+		float xPart = eyeX - static_cast<float>(applePos.x);
+		float eyePointAngle = std::atan2(yPart, xPart);
 		
-		renderer.drawSnake(cellX, cellY, SnakeType::HEAD, rotateAngle);
-		if (throughBorder)
-			renderer.drawSnake(cellX + shift.x, cellY + shift.y, SnakeType::HEAD, rotateAngle);
+		Cell dir = game.snake().getDirection();
+		if (dir.x > 0) {
+			eyePointAngle += M_PIf;
+		} else if (dir.y > 0) {
+			eyePointAngle += M_PI_2f;
+		} else if (dir.y < 0) {
+			eyePointAngle -= M_PI_2f;
+		}
+
+		renderer.drawEyes(eyeX, eyeY, eyeRotateAngle, eyePointAngle);
 	}
 }
 
@@ -298,7 +442,7 @@ Cell getShift(const Cell diff, const Cell fieldSize) {
 
 	if (diff.x > 1 || diff.x < -1)
 		shift.x = (diff.x > 1) ? fieldSize.x : -fieldSize.x;
-	else
+	else if (diff.y > 1 || diff.y < -1)
 		shift.y = (diff.y > 1) ? fieldSize.y : -fieldSize.y;
 
 	return shift;

@@ -4,5 +4,8 @@ enum class SnakeType {
     BODY,
     HEAD,
     TAIL,
-    CORNER
+    CORNER,
+    TAIL_TAIL,
+    CAP,
+    TAIL_CORNER
 };
