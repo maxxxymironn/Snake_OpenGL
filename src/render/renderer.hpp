@@ -13,8 +13,8 @@ class ShaderProgram;
 class Renderer {
 private:
     std::unique_ptr<ShaderProgram> shaderProgram;
-    std::unique_ptr<ShaderProgram> shaderTexProgram;
     bool successShaderCompilation;
+    bool isTextureMode;
 
     // Objects
     GLuint vaoID = 0;
@@ -29,6 +29,8 @@ private:
     GLuint texCoordLoc = 0;
 
     // Textures
+    GLuint atlasTex = 0;
+
     GLuint fieldTex = 0;
     GLuint appleTex = 0;
     GLuint pauseTex = 0;
@@ -41,6 +43,7 @@ private:
     GLuint tailCornerTex = 0;
     GLuint eyeTex = 0;
     GLuint eyePointTex = 0;
+    GLuint eyeDeadTex = 0;
     
     // GLuint snakeAtlasTex = 0;
 
@@ -68,14 +71,14 @@ public:
 
     void beginFrame();
     void useDefaultProgram();
-    void useTextureProgram();
+    void useShaderProgram();
     void endFrame();
 
     void drawField();
     void drawPause();
     void drawApple(const float x, const float y, const float scale);
     void drawSnake(const float x, const float y, const SnakeType snakeType, const float rotateAngle);
-    void drawEyes(const float x, const float y, const float eyeAngle, const float eyePointAngle=0.f);
+    void drawEyes(const float x, const float y, const float eyeAngle, const float eyePointAngle, const bool isSnakeDead);
 
     void drawObject(const GLfloat* const modelPtr, const bool useBlend, const GLuint texture, const float textureSize=1.f);
 };

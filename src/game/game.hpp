@@ -12,15 +12,16 @@ class Game {
 
     GameStatus m_status;
     GameStatus m_prevStatus;
-
     GameMode m_mode;
+
+    int m_score;
 
     bool generateApple;
 
     bool checkLoose(Cell& newHead);
-
 public:
     Game();
+    ~Game();
     
     GameStatus status() const { return m_status; }
     GameMode mode() const { return m_mode; }
@@ -36,4 +37,5 @@ public:
     void reset();
     
     void updateStatus(GameStatus status);
+    void saveStats();
 };

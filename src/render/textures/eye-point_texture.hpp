@@ -1,4 +1,4 @@
-// array size is 676
+// 13x13x4 = 676
 constexpr unsigned char eyePointPixels[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 

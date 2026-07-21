@@ -27,7 +27,10 @@ class Clock {
     bool isSnakeFreezed = true;
 
 public:
-    Clock(): stepTime(CoreConfigVariables::gameSpeed) {}
+    Clock(): stepTime(CoreConfig::gameSpeed) {}
+    ~Clock() {
+        CoreConfig::gameSpeed = stepTime;
+    }
 
     void start() { startTime = lastTime = std::chrono::steady_clock::now(); }
 
@@ -69,7 +72,7 @@ public:
     float getSnakeMovingCoeff() const { return snakeMovingCoeff; }
     float getPrevFrames() const { return prevFrames; }
 
-    bool isUpdateTime(float time=CoreConfigVariables::gameSpeed) const { return gameStepAccumulator >= time; }
+    bool isUpdateTime(float time=CoreConfig::gameSpeed) const { return gameStepAccumulator >= time; }
     void updateGameStepAccumulator() { gameStepAccumulator -= stepTime; }
     void resetGameStepAccumulator() { gameStepAccumulator = 0.f; }
 

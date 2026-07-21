@@ -1,5 +1,5 @@
 #pragma once
 
-struct CoreConfigVariables {
+struct CoreConfig {
     inline static float gameSpeed = 0.15;
 };

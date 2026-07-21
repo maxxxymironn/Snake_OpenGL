@@ -15,6 +15,9 @@
 #include "textures/tail-corner_texture.hpp"
 #include "textures/eye_texture.hpp"
 #include "textures/eye-point_texture.hpp"
+#include "textures/eye-dead_texture.hpp"
+#include "../config/renderer_config.hpp"
+#include "../core/logger.hpp"
 
 #include <glad/glad.h>
 #include <glm/ext/quaternion_transform.hpp>
@@ -24,23 +27,13 @@
 
 #include <iostream>
 
-Renderer::Renderer(): successShaderCompilation(false) {
-    shaderProgram = std::make_unique<ShaderProgram>(shaders::vertSource, shaders::fragSource);
-    shaderTexProgram = std::make_unique<ShaderProgram>(shaders::vertSrcTex, shaders::fragSrcTex);
+Renderer::Renderer(): successShaderCompilation(false), isTextureMode(RenderConfig::isTextureMode) {
+    shaderProgram = std::make_unique<ShaderProgram>(shaders::vertSrcTex, shaders::fragSrcTex);
 
-    if(!shaderProgram->getSuccessInfo()) {
-        std::cout << "ShaderProgram creation failed" << std::endl;
-
-        if (!shaderTexProgram->getSuccessInfo())
-            std::cout << "ShaderTexProgram creation failed" << std::endl;
-    }
-    else if (!shaderTexProgram->getSuccessInfo()) {
-        std::cout << "ShaderTexProgram creation failed" << std::endl;
-    }
+    if (!shaderProgram || !shaderProgram->getSuccessInfo())
+        Logger::getInstance().printError("RENDERER", "ShaderProgram creation failed");
     else {
         init();
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-
         successShaderCompilation = true;
     }    
 }
@@ -94,27 +87,25 @@ void Renderer::init() {
 
     /* Setting uniforms */
     GLuint programID;
-    // projection
     programID = shaderProgram->getID();
     shaderProgram->use();
+
     glm::mat4 projection = glm::ortho(
         0.0f, 2.f,
         0.0f, 2.f
     );
-    glUniformMatrix4fv(glGetUniformLocation(programID, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-    modelLoc = glGetUniformLocation(programID, "model");
-    colorLoc = glGetUniformLocation(programID, "color");
 
-    // texture
-    programID = shaderTexProgram->getID();
-    shaderTexProgram->use();
-    glUniform1i(glGetUniformLocation(programID, "uTexture"), 0);
-    glUniformMatrix4fv(glGetUniformLocation(programID, "projectionn"), 1, GL_FALSE, glm::value_ptr(projection));
-    modellLoc = glGetUniformLocation(programID, "modell");
-    texCoordLoc = glGetUniformLocation(programID, "texScale");
+    glUniform1i(glGetUniformLocation(programID, "uTex"), 0);
+    glUniformMatrix4fv(glGetUniformLocation(programID, "uProjection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+    modelLoc = glGetUniformLocation(programID, "uModel");
+    texCoordLoc = glGetUniformLocation(programID, "uTexScale");
+    colorLoc = glGetUniformLocation(programID, "uColor");
 
     glUseProgram(0);
     /* End uniforms */
+
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 }
 
 void Renderer::generateTextures() {
@@ -147,6 +138,8 @@ void Renderer::generateTextures() {
     GLsizei snakeEyeTexSize = 13;
     generateTextureObject(eyeTex, eyePixels, snakeEyeTexSize, snakeEyeTexSize);
     generateTextureObject(eyePointTex, eyePointPixels, snakeEyeTexSize, snakeEyeTexSize);
+    generateTextureObject(eyeDeadTex, eyeDeadPixels, snakeEyeTexSize, snakeEyeTexSize);
+
 }
 
 void Renderer::generateTextureObject(
@@ -191,13 +184,8 @@ void Renderer::endFrame() {
     glUseProgram(0);
 }
 
-void Renderer::useDefaultProgram() {
+void Renderer::useShaderProgram() {
     shaderProgram->use();
-    glBindVertexArray(vaoID);
-}
-
-void Renderer::useTextureProgram() {
-    shaderTexProgram->use();
     glBindVertexArray(vaoTexID);
 }
 
@@ -205,9 +193,10 @@ void Renderer::drawField() {
     glm::mat4 model(1.f);
     model = glm::translate(model, glm::vec3(1.f,1.f,0.f));
 
-    float texOverSize = 10.f;
+    float texOversize = 10.f;
     bool useBlend = false;
-    drawObject(glm::value_ptr(model), useBlend, fieldTex, texOverSize);
+    glUniform4f(colorLoc, 1.f, 1.f, 1.f, 1.0f);
+    drawObject(glm::value_ptr(model), useBlend, fieldTex, texOversize);
 }
 
 void Renderer::drawApple(const float x, const float y, const float scale) {
@@ -220,6 +209,7 @@ void Renderer::drawApple(const float x, const float y, const float scale) {
     model = glm::scale(model, glm::vec3(NDCcellWidth / 2.f * scale));
 
     bool useBlend = true;
+    glUniform4f(colorLoc, 1.f, 1.f, 1.f, 1.0f);
     drawObject(glm::value_ptr(model), useBlend, appleTex);
 }
 
@@ -247,10 +237,11 @@ void Renderer::drawSnake(const float x, const float y, const SnakeType snakeType
     model = glm::rotate(model, rotateAngle, {0, 0, 1.f});
 
     bool useBlend = true;
+    glUniform4f(colorLoc, 1.f, 1.f, 1.f, 1.0f);
     drawObject(glm::value_ptr(model), useBlend, snakePartTex);
 }
 
-void Renderer::drawEyes(const float x, const float y, const float eyeAngle, const float eyePointAngle) {
+void Renderer::drawEyes(const float x, const float y, const float eyeAngle, const float eyePointAngle, const bool isSnakeDead) {
     constexpr bool useBlend = true;
     constexpr float xEyeOffsetPxl = 0.02;
     constexpr float yEyeOffsetPxl = 0.015;
@@ -277,15 +268,23 @@ void Renderer::drawEyes(const float x, const float y, const float eyeAngle, cons
     glm::mat4 model2(model);
     model2 = glm::translate(model2, glm::vec3(0.f, 0.07f, 0.f));
 
-    model = glm::rotate(model, eyePointAngle, {0.f, 0.f, 1.f});
+    if (!isSnakeDead) {
+        model = glm::rotate(model, eyePointAngle, {0.f, 0.f, 1.f});
+        model2 = glm::rotate(model2, eyePointAngle, {0.f, 0.f, 1.f});
+    }
     model = scale(model, glm::vec3(NDCcellWidth / 6.154f));
-    model2 = glm::rotate(model2, eyePointAngle, {0.f, 0.f, 1.f});
     model2 = scale(model2, glm::vec3(NDCcellWidth / 6.154f));
+
+    glUniform4f(colorLoc, 1.f, 1.f, 1.f, 1.0f);
     drawObject(value_ptr(model), useBlend, eyeTex);
     drawObject(value_ptr(model2), useBlend, eyeTex);
-
-    drawObject(value_ptr(model), useBlend, eyePointTex);
-    drawObject(value_ptr(model2), useBlend, eyePointTex);
+    if (!isSnakeDead) {
+        drawObject(value_ptr(model), useBlend, eyePointTex);
+        drawObject(value_ptr(model2), useBlend, eyePointTex);
+    } else {
+        drawObject(value_ptr(model), useBlend, eyeDeadTex);
+        drawObject(value_ptr(model2), useBlend, eyeDeadTex);
+    }
 }
 
 void Renderer::drawPause() {
@@ -307,13 +306,14 @@ void Renderer::drawPause() {
     ));
     model2 = glm::scale(model2, glm::vec3(0.05f, 0.25f, 0.f));
 
+    glUniform4f(colorLoc, 1.f, 1.f, 1.f, 0.5f);
     bool useBlend = true;
     drawObject(glm::value_ptr(model), useBlend, pauseTex);
     drawObject(glm::value_ptr(model2), useBlend, pauseTex);
 }
 
 void Renderer::drawObject(const GLfloat* const modelPtr, const bool useBlend, const GLuint texture, const float textureSize) {
-    glUniformMatrix4fv(modellLoc, 1, GL_FALSE, modelPtr);
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, modelPtr);
     glUniform2f(texCoordLoc, textureSize, textureSize);
 
     if (useBlend) {

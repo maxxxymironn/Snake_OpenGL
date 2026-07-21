@@ -32,8 +32,6 @@ int main() {
 	}
 	Game game;
 	Clock clock; // TODO: maybe class Clock should be in composition with class Game
-
-	// Cell applePos = game.apple().getPosition();
 	
 	renderer.setFieldSize(game.field().getFieldSize().x, game.field().getFieldSize().y);
 
@@ -66,12 +64,12 @@ int main() {
 				if (game.apple().isNew()) {
 					window.updateScore();
 					game.apple().setOld();
-					// applePos = game.apple().getPosition();
 				}
 			}
 		}
 		if (game.status() == GameStatus::LOOSE) {
 			if (configManager.isReadyToSaveFile()) {
+				game.saveStats();
 				configManager.saveFile();
 				clock.freezeSnake();
 			}
@@ -83,7 +81,17 @@ int main() {
 			}
 		}
 		else if (game.status() == GameStatus::WIN) {
-			window.close();
+			if (configManager.isReadyToSaveFile()) {
+				game.saveStats();
+				configManager.saveFile();
+				clock.freezeSnake();
+			}
+			if (clock.isUpdateTime(3.f)) {
+				game.reset();
+				window.updateScore(false);
+				inputManager.turnOffBuffer();
+				clock.resetGameStepAccumulator();
+			}
 		}
 		else if (game.status() == GameStatus::GAME_START) {
 			if (game.apple().isNew()) {
@@ -411,7 +419,13 @@ void drawSnake(Renderer& renderer, const Game& game, float alpha) {
 			eyePointAngle -= M_PI_2f;
 		}
 
-		renderer.drawEyes(eyeX, eyeY, eyeRotateAngle, eyePointAngle);
+		static bool isSnakeDead = false;
+		if (!isSnakeDead && gameStatus == GameStatus::LOOSE)
+			isSnakeDead = true;
+		else if (gameStatus == GameStatus::GAME_START && isSnakeDead) {
+			isSnakeDead = false;
+		}
+		renderer.drawEyes(eyeX, eyeY, eyeRotateAngle, eyePointAngle, isSnakeDead);
 	}
 }
 
@@ -450,7 +464,7 @@ Cell getShift(const Cell diff, const Cell fieldSize) {
 
 void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 	renderer.beginFrame();
-	renderer.useTextureProgram();
+	renderer.useShaderProgram();
 
 	renderer.drawField();
 	Cell applePos = game.apple().getPosition();

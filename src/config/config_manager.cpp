@@ -1,9 +1,10 @@
 #include "config_manager.hpp"
 
+#include "../core/logger.hpp"
 #include "core_config.hpp"
 #include "game_config.hpp"
 #include "window_config.hpp"
-#include "../core/logger.hpp"
+#include "renderer_config.hpp"
 
 #include <cstdlib>
 #include <exception>
@@ -12,7 +13,9 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <string_view>
 
+// headers for correctly search path on windows
 #ifdef _WIN32
 #include <combaseapi.h>
 #include <shlobj.h>
@@ -20,11 +23,11 @@
 #include <windows.h>
 #endif
 
-static void printError(const std::string& description) {
+void printError(const std::string& description) {
     Logger::getInstance().printError("CONFIG_MANAGER", description.c_str());
 }
 
-static bool tryRead(int& iValue, const std::string& sValue, const std::string& configVarName) {
+bool isSuccessRead(int& iValue, const std::string& sValue, const std::string& configVarName) {
     try {
         iValue = std::stoi(sValue);
     } catch (const std::exception& e) {
@@ -69,13 +72,13 @@ std::filesystem::path ConfigManager::getFilePath() {
 
     fs::path dirPath = fs::current_path();
 
-    const char* dirPathStr = std::getenv("XDG_CONFIG_HOME");
-    if (!dirPathStr || dirPathStr[0] == '\0') {
-        dirPathStr = std::getenv("HOME");
-        if (dirPathStr)
-            dirPath = fs::path(dirPathStr) / ".config" / "Snake_OpenGL";
-    } else {
+    const char* dirPathStr = std::getenv("XDG_DATA_HOME");
+    if (dirPathStr && dirPathStr[0] != '\0')
         dirPath = fs::path(dirPathStr) / "Snake_OpenGL";
+    else {
+        dirPathStr = std::getenv("HOME");
+        if (dirPathStr && dirPathStr[0] != '\0')
+            dirPath = fs::path(dirPathStr) / ".local" / "share" / "Snake_OpenGL";
     }
 
     if (!fs::exists(dirPath))
@@ -107,56 +110,59 @@ bool ConfigManager::readFile() {
         if (!(ss >> equalSign) || equalSign != "=") {
             printError("missing \"=\" after \"" + configVar + "\" variable");
             continue;
-        } else if (!(ss >> value)) {
+        } 
+        else if (!(ss >> value)) {
             printError("missing \"" + configVar + "\" value");
             continue;
         }
 
         if (configVar == "fullscreen") {
-            if (value == "true") {
-                WindowConfigVariables::fullscreen = true;
-            } else if (value == "false") {
-                WindowConfigVariables::fullscreen = false;
-            } else {
+            if (value == "true")
+                WindowConfig::fullscreen = true;
+            else if (value == "false")
+                WindowConfig::fullscreen = false;
+            else
                 printError("\"fullscreen\" value should be \"true\"/\"false\"");
-            }
         }
         else if (configVar == "windowSize") {
             int iX, iY;
 
-            if (tryRead(iX, value, configVar)) {
-                if (!(ss >> value)) {
-                    printError("missing second \"" + configVar + "\" value");
-                    continue;
-                } else if (tryRead(iY, value, configVar)) {
-                    if (iX < 800 || iY < 800) {
-                        printError("\"" + configVar + "\" value is too small");
-                    } else {
-                        WindowConfigVariables::windowWidth = iX;
-                        WindowConfigVariables::windowHeight = iY;
-                    }  
-                }
+            if (!isSuccessRead(iX, value, configVar)) {
+                continue;
+            }
+            if (!(ss >> value)) {
+                printError("missing second \"" + configVar + "\" value");
+            }
+            else if (!isSuccessRead(iY, value, configVar)) {
+                continue;
+            }
+            else if (iX < 800 || iY < 800) {
+                printError("\"" + configVar + "\" is too small (size must be > 800 800)");
+            }
+            else {
+                WindowConfig::windowWidth = iX;
+                WindowConfig::windowHeight = iY;
             }
         }
         else if (configVar == "maxScore") {
             int maxScore;
 
-            if (tryRead(maxScore, value, configVar)) {
-                if (maxScore < 0 || maxScore > 5000)
-                    printError(configVar + " value " + (maxScore < 0 ? "cannot be negative" : "is too big"));
-                else
-                    GameConfigVariables::maxScore = maxScore;
-            }
+            if (!isSuccessRead(maxScore, value, configVar))
+                continue;
+            else if (maxScore < 0 || maxScore > 5000)
+                printError(configVar + " value " + (maxScore < 0 ? "cannot be negative" : "is too big"));
+            else
+                GameConfig::maxScore = maxScore;
         }
         else if (configVar == "wins") {
             int wins;
 
-            if (tryRead(wins, value, configVar)) {
-                if (wins < 0)
-                    printError("\"" + configVar + "\" value cannot be negative");
-                else
-                    GameConfigVariables::wins = wins;
-            }
+            if (!isSuccessRead(wins, value, configVar))
+                continue;
+            else if (wins < 0)
+                printError("\"" + configVar + "\" value cannot be negative");
+            else
+                GameConfig::wins = wins;
         }
         else if (configVar == "tinyWins") {
 
@@ -176,53 +182,91 @@ bool ConfigManager::readFile() {
         else if (configVar == "deaths") {
             int deaths;
             
-            if (tryRead(deaths, value, configVar)) {
-                if (deaths < 0)
-                    printError("\"" + configVar + "\" value cannot be negative");
-                else
-                    GameConfigVariables::deaths = deaths;
-            }
+            if (!isSuccessRead(deaths, value, configVar))
+                continue;
+            else if (deaths < 0)
+                printError("\"" + configVar + "\" value cannot be negative");
+            else
+                GameConfig::deaths = deaths;
         } 
         else if (configVar == "timeAtGame") {
 
         } 
         else if (configVar == "gameMode") {
             if (value == "DEFAULT")
-                GameConfigVariables::gameMode = GameMode::DEFAULT;
+                GameConfig::gameMode = GameMode::DEFAULT;
             else if (value == "THROUGH_WALLS")
-                GameConfigVariables::gameMode = GameMode::THROUGH_WALLS;
+                GameConfig::gameMode = GameMode::THROUGH_WALLS;
             else
                 printError("\"" + configVar + "\" has invalid value");
         } 
         else if (configVar == "fieldSize") {
-            if (value == "TINY")
-                GameConfigVariables::fieldSize = FieldSize::TINY;
-            else if (value == "SMALL")
-                GameConfigVariables::fieldSize = FieldSize::SMALL;
-            else if (value == "MEDIUM")
-                GameConfigVariables::fieldSize = FieldSize::MEDIUM;
-            else if (value == "BIG")
-                GameConfigVariables::fieldSize = FieldSize::BIG;
-            else if (value == "HUGE")
-                GameConfigVariables::fieldSize = FieldSize::HUGE;
-            else
-                printError("\"" + configVar + "\" has invalid value");
+            if (value == "TINY") {
+                GameConfig::xFieldSize = 7;
+                GameConfig::yFieldSize = 7;
+            }
+            else if (value == "SMALL") {
+                GameConfig::xFieldSize = 10;
+                GameConfig::yFieldSize = 10;
+            }
+            else if (value == "MEDIUM") {
+                GameConfig::xFieldSize = 14;
+                GameConfig::yFieldSize = 14;
+            }
+            else if (value == "BIG") {
+                GameConfig::xFieldSize = 20;
+                GameConfig::yFieldSize = 20;
+            }
+            else if (value == "HUGE") {
+                GameConfig::xFieldSize = 28;
+                GameConfig::yFieldSize = 28;
+            }
+            else {
+                int iX, iY;
+
+                if (!isSuccessRead(iX, value, configVar)) {
+                    continue;
+                }
+                else if (!(ss >> value)) {
+                    printError("missing second \"" + configVar + "\" value");
+                } 
+                else if (!isSuccessRead(iY, value, configVar)) {
+                    continue;
+                }
+                else if (iX < 7 || iY < 7) {
+                    printError("\"" + configVar + "\" is too small (size must be > 7)");
+                } 
+                else if (iX > 40 || iY > 40) {
+                    printError("\"" + configVar + "\" is too big (size must be < 40)");
+                } 
+                else {
+                    GameConfig::xFieldSize = iX;
+                    GameConfig::yFieldSize = iY;
+                }  
+            }
         } 
         else if (configVar == "gameSpeed") {
             if (value == "VERY_SLOW")
-                CoreConfigVariables::gameSpeed = 0.6f;
+                CoreConfig::gameSpeed = 0.6f;
             else if (value == "SLOW")
-                CoreConfigVariables::gameSpeed = 0.3f;
+                CoreConfig::gameSpeed = 0.3f;
             else if (value == "MEDIUM")
-                CoreConfigVariables::gameSpeed = 0.15f;
+                CoreConfig::gameSpeed = 0.15f;
             else if (value == "FAST")
-                CoreConfigVariables::gameSpeed = 0.1f;
+                CoreConfig::gameSpeed = 0.1f;
             else
                 printError("\"" + configVar + "\" has invalid value");
         } 
+        else if (configVar == "renderMode") {
+            if (value == "TEXTURE")
+                RenderConfig::isTextureMode = true;
+            else if (value == "PRIMITIVE")
+                RenderConfig::isTextureMode = false;
+            else
+                printError("\"" + configVar + "\" has invalid value");
+        }
         else {
             printError("\"" + configVar + "\" is unknown configuration variable");
-            return false;
         }
     }
 
@@ -230,60 +274,72 @@ bool ConfigManager::readFile() {
 }
 
 bool ConfigManager::saveFile() {
-    if (!readyToSaveFile)
-        return false;
-
+    // if (!readyToSaveFile)
+    //     return false;
     std::ofstream out(file);
     if (!out.is_open())
         return false;
 
-    std::string strFullscreen = WindowConfigVariables::fullscreen ? "true" : "false";
+    std::string strFullscreen = WindowConfig::fullscreen ? "true" : "false";
 
     std::string strGameMode;
-    switch (GameConfigVariables::gameMode) {
+    switch (GameConfig::gameMode) {
         case GameMode::DEFAULT: strGameMode = "DEFAULT"; break;
         case GameMode::BOUNDLESS: strGameMode = "BOUNDLESS"; break;
         case GameMode::THROUGH_WALLS: strGameMode = "THROUGH_WALLS"; break;
     }
 
     std::string strFieldSize;
-    switch (GameConfigVariables::fieldSize) {
-        case FieldSize::TINY: strFieldSize = "TINY"; break;
-        case FieldSize::SMALL: strFieldSize = "SMALL"; break;
-        case FieldSize::MEDIUM: strFieldSize = "MEDIUM"; break;
-        case FieldSize::BIG: strFieldSize = "BIG"; break;
-        case FieldSize::HUGE: strFieldSize = "HUGE"; break;
-    }
+    if (GameConfig::xFieldSize == GameConfig::yFieldSize) {
+        switch (GameConfig::xFieldSize) {
+            case 7:  strFieldSize = "TINY"; break;
+            case 10: strFieldSize = "SMALL"; break;
+            case 14: strFieldSize = "MEDIUM"; break;
+            case 20: strFieldSize = "BIG"; break;
+            case 28: strFieldSize = "HUGE"; break;
+        }
+    } else
+        strFieldSize = std::to_string(GameConfig::xFieldSize) + " " + std::to_string(GameConfig::yFieldSize);
 
     std::string strGameSpeed;
-    if (CoreConfigVariables::gameSpeed == 0.1f) {
+    if (CoreConfig::gameSpeed == 0.1f) {
         strGameSpeed = "FAST";
-    } else if (CoreConfigVariables::gameSpeed == 0.15f) {
-        strGameSpeed = "MEDIUM";
-    } else if (CoreConfigVariables::gameSpeed == 0.3f) {
+    } else if (CoreConfig::gameSpeed == 0.3f) {
         strGameSpeed = "SLOW";
-    } else if (CoreConfigVariables::gameSpeed == 0.6f) {
+    } else if (CoreConfig::gameSpeed == 0.6f) {
         strGameSpeed = "VERY_SLOW";
-    }
+    } else {
+        strGameSpeed = "MEDIUM";
+    } 
+
+    std::string strRenderMode;
+    strRenderMode = RenderConfig::isTextureMode ? "TEXTURE" : "PRIMITIVE";
 
     out << 
-    "#Window information\n" \
-    "fullscreen = " << strFullscreen << "\n" \
-    "windowSize = " << WindowConfigVariables::windowWidth << " " 
-                    << WindowConfigVariables::windowHeight << "\n" \
-    "\n#Game information\n" \
-    "maxScore = " << GameConfigVariables::maxScore << "\n" \
-    "wins = " << GameConfigVariables::wins << "\n" \
-    "tinyWins = " << GameConfigVariables::tinyWins << "\n" \
-    "mediumWins = " << GameConfigVariables::mediumWins << "\n" \
-    "bigWins = " << GameConfigVariables::bigWins << "\n" \
-    "hugeWins = " << GameConfigVariables::hugeWins << "\n" \
-    "deaths = " << GameConfigVariables::deaths << "\n" \
-    "timeAtGame = " << GameConfigVariables::timeAtGame << "\n" \
-    "gameMode = " << strGameMode << "\n" \
-    "fieldSize = " << strFieldSize <<  "\n" \
-    "\n#Core information\n"
-    "gameSpeed = " << strGameSpeed << "\n";
+    "# Window information\n"
+    "fullscreen = " << strFullscreen << "\n"
+    "windowSize = " << WindowConfig::windowWidth << " " 
+                    << WindowConfig::windowHeight << "\n"
+
+    "\n# Game information\n"
+    "gameMode = " << strGameMode << "\n"
+    "fieldSize = " << strFieldSize <<  "\n"
+
+    "\n# Core information\n"
+    "gameSpeed = " << strGameSpeed << "\n"
+
+    "\n# Renderer information\n"
+    "renderMode = " << strRenderMode << "\n"
+    
+    "\n# Statistics\n"
+    "maxScore = " << GameConfig::maxScore << "\n"
+    "wins = " << GameConfig::wins << "\n"
+    "tinyWins = " << GameConfig::tinyWins << "\n"
+    "mediumWins = " << GameConfig::mediumWins << "\n"
+    "bigWins = " << GameConfig::bigWins << "\n"
+    "hugeWins = " << GameConfig::hugeWins << "\n"
+    "deaths = " << GameConfig::deaths << "\n"
+    "timeAtGame = " << GameConfig::timeAtGame << "\n";
 
     readyToSaveFile = false;
     return true;

@@ -6,28 +6,22 @@ class GLFWwindow;
 
 class Window {
     GLFWwindow* m_handle = nullptr;
-
     // Monitor info
     int m_mWidth;
     int m_mHeight;
     int m_mRefreshRate;
-
     // Window info
     int m_width;
     int m_height;
-    int m_prevWidth;
-    int m_prevHeight;
-
     int m_windowXPos;
     int m_windowYPos;
-    bool m_fullscreen;
-
-    bool terminated;
-
     // Title info
-    bool updateTitle;
     int scoreTitle;
     int fpsTitle;
+    bool updateTitle;
+
+    bool m_fullscreen;
+    bool terminated;
 
     void mapKey();
 
@@ -43,7 +37,7 @@ class Window {
 
 public:
     Window();
-    ~Window() { terminate(); }
+    ~Window();
 
     void setInputManagerSetKey(std::function<void(Action, bool)> fn) { inputManagerSetKey = std::move(fn); }
     void setRefreshCallback(std::function<void()> fn) { refreshScreen = std::move(fn); }
@@ -52,10 +46,11 @@ public:
 
     void close() const;
     bool shouldClose();
-    
+        
     void pollEvents();
+
     void swapBuffers();
 
     void updateFPS(const int fps) { fpsTitle = fps; updateTitle = true; }
-    void updateScore(const bool increment=true);
+    void updateScore(const bool toIncrement=true);
 };

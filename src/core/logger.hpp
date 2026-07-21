@@ -13,4 +13,5 @@ public:
     }
 
     void printError(const char* name, const char* description);
+    void printInfo(const char* name, const char* description);
 };

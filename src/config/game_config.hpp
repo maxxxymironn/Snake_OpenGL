@@ -1,7 +1,7 @@
 #pragma once
 #include "../game/enums.hpp"
 
-struct GameConfigVariables {
+struct GameConfig {
     inline static int maxScore = 0;
 
     inline static int wins = 0;
@@ -15,5 +15,6 @@ struct GameConfigVariables {
     inline static int timeAtGame = 0;     // TODO: change variable type on std::chrono::duration?
     
     inline static GameMode gameMode = GameMode::DEFAULT;
-    inline static FieldSize fieldSize = FieldSize::BIG;
+    inline static int xFieldSize = 20;
+    inline static int yFieldSize = 20;
 };
