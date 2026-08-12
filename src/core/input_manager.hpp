@@ -11,7 +11,7 @@ class InputManager {
 
 public:
     void update();
-    void setKey(Action key, bool pressed);
+    void setKey(Action key, bool pressed, Mod mods);
 
     bool isKeyDown(Action key) const;
     bool isKeyPressed(Action key) const;

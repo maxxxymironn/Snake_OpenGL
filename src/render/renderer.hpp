@@ -1,84 +1,74 @@
 #pragma once
 
-#include "../game/snake_parts_enum.hpp"
+#include "texture_enum.hpp"
+#include "../core/rectangle.hpp"
+#include "../core/vector.hpp"
 
-#include <memory>
-
-using GLuint = unsigned int;
-using GLsizei = int;
-using GLfloat = float;
+#include <vector>
 
 class ShaderProgram;
 
 class Renderer {
 private:
-    std::unique_ptr<ShaderProgram> shaderProgram;
-    bool successShaderCompilation;
-    bool isTextureMode;
+    unsigned int _shaderProgram;
+    bool _zenMode;
+    bool _needUpdateStatic;
+    bool _needUpdateSemiStatic;
+    bool _staticMode;
 
-    // Objects
-    GLuint vaoID = 0;
-    GLuint vaoTexID = 0;
-    GLuint vboID = 0;
-    GLuint eboID = 0;
+    unsigned int _vao;
+    unsigned int _vbo;
+    unsigned int _ebo;
+    unsigned int _textureArray;
 
-    // Uniforms
-    GLuint modelLoc = 0;
-    GLuint modellLoc = 0;
-    GLuint colorLoc = 0;
-    GLuint texCoordLoc = 0;
+    unsigned int _drawingIndices;
+    unsigned int _staticDrawingIndices;
+    unsigned int _semistaticDrawingIndices;
+    unsigned int _offsetSemistaticIndices;
 
-    // Textures
-    GLuint atlasTex = 0;
+    vec2f _origin;
+    vec2f _viewSize;
+    float _contentScale;
 
-    GLuint fieldTex = 0;
-    GLuint appleTex = 0;
-    GLuint pauseTex = 0;
-    GLuint snakeBodyTex = 0;
-    GLuint snakeHeadTex = 0;
-    GLuint snakeTailTex = 0;
-    GLuint snakeTurnTex = 0;
-    GLuint tailTailTex = 0;
-    GLuint capTex = 0;
-    GLuint tailCornerTex = 0;
-    GLuint eyeTex = 0;
-    GLuint eyePointTex = 0;
-    GLuint eyeDeadTex = 0;
-    
-    // GLuint snakeAtlasTex = 0;
-
-    float NDCcellWidth;
-    float NDCcellHeight;
+    std::vector<Rectangle> _rectangleArray;
 
     void init();
-
-    void generateTextures();
-    void generateTextureObject(
-        GLuint& texture, 
-        const unsigned char textureArray[], 
-        GLsizei textureWidth, 
-        GLsizei textureHeight,
-        bool isRepeatingWrap=false
-    );
+    void updateBuffer();
 
 public:
     Renderer();
     ~Renderer();
 
-    bool getInitializeInfo() const { return successShaderCompilation; }
+    bool getInitializeInfo() const { return static_cast<bool>(_shaderProgram); }
 
-    void setFieldSize(const int& width, const int& height) { NDCcellWidth = 2.f / width; NDCcellHeight = 2.f / height; };
+    bool getNeedUpdateStatic() const { return _needUpdateStatic; }
 
-    void beginFrame();
-    void useDefaultProgram();
-    void useShaderProgram();
-    void endFrame();
+    bool isZenMode() const { return _zenMode; }
 
-    void drawField();
-    void drawPause();
-    void drawApple(const float x, const float y, const float scale);
-    void drawSnake(const float x, const float y, const SnakeType snakeType, const float rotateAngle);
-    void drawEyes(const float x, const float y, const float eyeAngle, const float eyePointAngle, const bool isSnakeDead);
+    void setStaticMode(const bool staticMode) { _staticMode = staticMode; }
 
-    void drawObject(const GLfloat* const modelPtr, const bool useBlend, const GLuint texture, const float textureSize=1.f);
+    void setOrigin(const vec2f origin) { _origin = origin * _contentScale - _viewSize; }
+
+    void saveSemistaticIndices() { 
+        _semistaticDrawingIndices = _drawingIndices;
+        _drawingIndices = 0;
+        _offsetSemistaticIndices = 0;
+    }
+
+    void addObject(
+        vec2f size, vec2f pos, const TexType texType, 
+        const vec2f texCoord, const vec4f color, const float rotateAngle
+    );
+
+    void draw();
+
+    void setViewSize(const vec2i viewSize) { 
+        _origin += _viewSize;
+        _viewSize = static_cast<vec2f>(viewSize) * 0.5f; 
+        _needUpdateStatic = true; 
+        _staticDrawingIndices = 0;
+        _origin -= _viewSize;
+    }
+    void setContentScale(const float contentScale) { _contentScale = contentScale; }
+    void changeZenMode() { _zenMode = !_zenMode; }
 };

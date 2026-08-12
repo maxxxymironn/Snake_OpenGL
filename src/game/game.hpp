@@ -1,6 +1,6 @@
 #pragma once
 #include "apple.hpp"
-#include "cell.hpp"
+#include "../core/vector.hpp"
 #include "enums.hpp"
 #include "field.hpp"
 #include "snake.hpp"
@@ -18,7 +18,7 @@ class Game {
 
     bool generateApple;
 
-    bool checkLoose(Cell& newHead);
+    bool checkLoose(vec2i& newHead);
 public:
     Game();
     ~Game();

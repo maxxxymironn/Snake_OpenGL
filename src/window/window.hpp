@@ -1,48 +1,55 @@
 #include "../core/action.hpp"
 
+#include "../core/vector.hpp"
+
 #include <functional>
 
 class GLFWwindow;
 
 class Window {
-    GLFWwindow* m_handle = nullptr;
-    // Monitor info
-    int m_mWidth;
-    int m_mHeight;
-    int m_mRefreshRate;
-    // Window info
-    int m_width;
-    int m_height;
-    int m_windowXPos;
-    int m_windowYPos;
-    // Title info
-    int scoreTitle;
-    int fpsTitle;
-    bool updateTitle;
+    GLFWwindow* _handle = nullptr;
 
-    bool m_fullscreen;
-    bool terminated;
+    vec4i _windowParam;
+    vec2i _bufferSize;
+    vec2i _viewSize;
+    vec2i _fieldSize;
 
-    void mapKey();
+    float _windowScale;
+    float _contentScale;
+    int _scoreTitle;
+    int _fpsTitle;
 
-    void setTitle();
+    bool _fullscreen;
+    bool _zenMode;
+    bool _updateTitle;
 
-    std::function<void(Action, bool)> inputManagerSetKey;
+    std::function<void(Action key, bool isPressed, Mod mods)> inputManagerSetKey;
     std::function<void()> refreshScreen;
 
-    static void errorCallback(const int error_code, const char *description);
     static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
     static void sizeCallback(GLFWwindow* window, int width, int height);
+    static void framebufferSizeCallback(GLFWwindow* window, int width, int height);
+    static void contentSizeCallback(GLFWwindow* window, float xScale, float yScale);
     static void refreshCallback(GLFWwindow* window);
+    static void errorCallback(const int error_code, const char *description);
 
+    void setTitle();
+    void setViewport();
+    void updateView();
 public:
     Window();
     ~Window();
 
-    void setInputManagerSetKey(std::function<void(Action, bool)> fn) { inputManagerSetKey = std::move(fn); }
+    void setInputManagerSetKey(std::function<void(Action, bool, Mod)> fn) { inputManagerSetKey = std::move(fn); }
     void setRefreshCallback(std::function<void()> fn) { refreshScreen = std::move(fn); }
 
-    void terminate();
+    vec2i getViewSize() const { return _viewSize; }
+    float getContentScale() const { return _contentScale; }
+
+    void updateFieldSize(const vec2i fieldCellSize) { _fieldSize = fieldCellSize * 40; updateView(); }
+    void increaseContentScaling() { _contentScale += 0.1f; updateView(); }
+    void decreaseContentScaling() { _contentScale -= 0.1f; updateView(); }
+    void changeZenStatus() { _zenMode = !_zenMode; updateView(); }
 
     void close() const;
     bool shouldClose();
@@ -51,6 +58,6 @@ public:
 
     void swapBuffers();
 
-    void updateFPS(const int fps) { fpsTitle = fps; updateTitle = true; }
+    void updateFPS(const int fps) { _fpsTitle = fps; _updateTitle = true; }
     void updateScore(const bool toIncrement=true);
 };

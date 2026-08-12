@@ -3,11 +3,11 @@
 #include "../config/game_config.hpp"
 #include "enums.hpp"
 
-bool checkHeadThroughWalls(const Cell newHead, const Cell fieldSize) {
+bool checkHeadThroughWalls(const vec2i newHead, const vec2i fieldSize) {
     return newHead.x == fieldSize.x || newHead.x == -1 || newHead.y == fieldSize.y || newHead.y == -1;
 }
 
-void correctNewHead(Cell& newHead, Cell fieldSize) {
+void correctNewHead(vec2i& newHead, const vec2i fieldSize) {
     if (newHead.x == fieldSize.x)
         newHead.x = 0;
     else if (newHead.x == -1)
@@ -31,7 +31,7 @@ Game::Game()
       m_score(0),
       generateApple(false)
 {
-    for (const Cell& bodyEl : m_snake.getBody())
+    for (const vec2i bodyEl : m_snake.getBody())
         m_field.removeFreeCell(bodyEl);
 
     m_apple.generateApple(m_field.getFreeCells());
@@ -43,7 +43,7 @@ Game::~Game() {
 }
 
 void Game::update() {
-    Cell newHead = m_snake.getHeadPos() + m_snake.getDirection();
+    vec2i newHead = m_snake.getHeadPos() + m_snake.getDirection();
 
     if (generateApple) {
         m_apple.generateApple(m_field.getFreeCells());
@@ -73,15 +73,15 @@ void Game::update() {
 }
 
 void Game::reset() {
-    for (const Cell& bodyEl : m_snake.getBody()) {
+    for (const vec2i& bodyEl : m_snake.getBody()) {
         m_field.addFreeCell(bodyEl);
     }
     m_field.addFreeCell(m_apple.getPosition());
     
-    Cell size = m_field.getFieldSize();
+    vec2i size = m_field.getFieldSize();
     m_snake.reset(size.x, size.y);
 
-    for (const Cell& bodyEl : m_snake.getBody()) {
+    for (const vec2i& bodyEl : m_snake.getBody()) {
         m_field.removeFreeCell(bodyEl);
     }
     m_apple.generateApple(m_field.getFreeCells());
@@ -91,8 +91,8 @@ void Game::reset() {
     m_status = GameStatus::GAME_START;
 }
 
-bool Game::checkLoose(Cell& newHead) {
-    const Cell fieldSize = m_field.getFieldSize();
+bool Game::checkLoose(vec2i& newHead) {
+    const vec2i fieldSize = m_field.getFieldSize();
 
     if (checkHeadThroughWalls(newHead, fieldSize)) {
         if (m_mode == GameMode::DEFAULT)
@@ -101,7 +101,7 @@ bool Game::checkLoose(Cell& newHead) {
         correctNewHead(newHead, fieldSize);
     }
     
-    std::vector<Cell> snakeBody = m_snake.getBody();
+    std::vector<vec2i> snakeBody = m_snake.getBody();
     for (auto it = ++snakeBody.rbegin(); it + 1 != snakeBody.rend(); ++it) {
         if (newHead == *it)
             return true;
@@ -136,7 +136,7 @@ void Game::saveStats() {
 
     GameConfig::gameMode = m_mode;
 
-    Cell fieldSize = m_field.getFieldSize();
+    vec2i fieldSize = m_field.getFieldSize();
     GameConfig::xFieldSize = fieldSize.x;
     GameConfig::yFieldSize = fieldSize.y;
 }

@@ -1,31 +1,37 @@
 namespace shaders {
-    constexpr const char* vertSrcTex = 
+    constexpr const char* vertexShaderSource = 
 R"(#version 330 core
-uniform mat4 uModel;
-uniform mat4 uProjection;
 
-layout (location = 0) in vec2 vPos;
-layout (location = 1) in vec2 vTexPos;
+layout (location = 0) in vec2 vPosition;
+layout (location = 1) in vec2 vTexCoord;
+layout (location = 2) in vec4 vColor;
+layout (location = 3) in int vIndex;
 
-out vec2 texPos;
+out vec2 fTexCoord;
+out vec4 fColor;
+flat out int layerIndex;
 
 void main() {
-    gl_Position = uProjection * uModel * vec4(vPos.xy, 0.0, 1.0);
-    texPos = vTexPos;
+    gl_Position = vec4(vPosition, 0.0, 1.0);
+    fTexCoord = vTexCoord;
+    fColor = vColor;
+    layerIndex = vIndex;
 }
 )";
 
-    constexpr const char* fragSrcTex = 
+    constexpr const char* fragmentShaderSource = 
 R"(#version 330 core
-uniform sampler2D uTex;
-uniform vec2 uTexScale;
-uniform vec4 uColor;
 
-in vec2 texPos;
+uniform sampler2DArray uTexArray;
+
+in vec2 fTexCoord;
+in vec4 fColor;
+flat in int layerIndex;
+
 out vec4 FragColor;
 
 void main() {
-    FragColor = texture(uTex, texPos.xy * uTexScale.xy) * uColor;
+    FragColor = texture(uTexArray, vec3(fTexCoord, float(layerIndex))) * fColor;
 }
 )";
 }

@@ -5,7 +5,7 @@ void Snake::increase() {
     m_headIt = m_body.begin();
 }
 
-void Snake::move(const Cell newHead) {
+void Snake::move(const vec2i newHead) {
     auto it = m_body.rbegin();
     m_prevTailCoord = *it;
     for (it; it + 1 != m_body.rend(); ++it)
@@ -16,7 +16,7 @@ void Snake::move(const Cell newHead) {
 
 void Snake::reset(const int width, const int height) {
     m_body.clear();
-    m_body = std::vector<Cell>{
+    m_body = std::vector<vec2i>{
         { width / 2, height / 2 },
         { width / 2 - 1, height / 2 }
     };

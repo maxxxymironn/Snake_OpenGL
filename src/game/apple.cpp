@@ -1,14 +1,14 @@
 #include "apple.hpp"
 #include <random>
 
-void Apple::generateApple(const std::vector<Cell>& freeCells) {
+void Apple::generateApple(const std::vector<vec2i>& freeCells) {
     // Get seed
     std::random_device seed;
-    // Random func
+    // func get seed and generate random value
     std::mt19937 rand(seed());
 
     std::uniform_int_distribution<int> dist(0, freeCells.size() - 1);
-    m_position = freeCells[dist(rand)];
+    _position = freeCells[dist(rand)];
 
-    m_isNew = true;
+    _isNew = true;
 }

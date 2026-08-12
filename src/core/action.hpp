@@ -9,5 +9,16 @@ enum class Action {
     MoveLeft,
     MoveRight,
 
+    ScaleUp,
+    ScaleDown,
+    ZenMode,
+
     COUNT
+};
+
+enum class Mod {
+    EMPTY,
+    SHIFT,
+    CTRL,
+    ALT,
 };

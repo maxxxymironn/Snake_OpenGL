@@ -1,332 +1,269 @@
 #include "renderer.hpp"
 
-#include "shaders.hpp"
-#include "shader_program.hpp"
-#include "quad_vertices.hpp"
-#include "textures/field_texture.hpp"
-#include "textures/apple_texture.hpp"
-#include "textures/pause_texture.hpp"
-#include "textures/snake_body_texture.hpp"
-#include "textures/snake_head_texture.hpp"
-#include "textures/snake_tail_texture.hpp"
-#include "textures/snake_turn_texture.hpp"
-#include "textures/tail-tail_texture.hpp"
-#include "textures/cap_texture.hpp"
-#include "textures/tail-corner_texture.hpp"
-#include "textures/eye_texture.hpp"
-#include "textures/eye-point_texture.hpp"
-#include "textures/eye-dead_texture.hpp"
-#include "../config/renderer_config.hpp"
+#include "../../resources/textures/apple.hpp"
+#include "../../resources/textures/body.hpp"
+#include "../../resources/textures/corner.hpp"
+#include "../../resources/textures/field.hpp"
+#include "../../resources/textures/tail.hpp"
+
+#include "../config/draw_config.hpp"
+#include "../core/rectangle.hpp"
 #include "../core/logger.hpp"
+#include "shaders.hpp"
 
 #include <glad/glad.h>
-#include <glm/ext/quaternion_transform.hpp>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
-#include <iostream>
+#include <cstddef>
+#include <cmath>
 
-Renderer::Renderer(): successShaderCompilation(false), isTextureMode(RenderConfig::isTextureMode) {
-    shaderProgram = std::make_unique<ShaderProgram>(shaders::vertSrcTex, shaders::fragSrcTex);
+namespace {
+    GLuint createShader(GLenum typeShader, const char* shaderSource) {
+        GLuint shaderID = glCreateShader(typeShader);
+        glShaderSource(shaderID, 1, &shaderSource, nullptr);
+        glCompileShader(shaderID);
 
-    if (!shaderProgram || !shaderProgram->getSuccessInfo())
-        Logger::getInstance().printError("RENDERER", "ShaderProgram creation failed");
-    else {
-        init();
-        successShaderCompilation = true;
-    }    
-}
+        int success;
+        glGetShaderiv(shaderID, GL_COMPILE_STATUS, &success);
+        if (!success) {
+            Logger::getInstance().printError((typeShader == GL_VERTEX_SHADER ? "SHADER::VERTEX" : "SHADER::FRAGMENT"), "COMPILATION_FAILED");
+            shaderID = 0;
+        }
 
-Renderer::~Renderer() {
-    if (vaoID) glDeleteVertexArrays(1, &vaoID);
-    if (vaoTexID) glDeleteVertexArrays(1, &vaoTexID);
-    if (vboID) glDeleteBuffers(1, &vboID);
-    if (eboID) glDeleteBuffers(1, &eboID);
+        return shaderID;
+    }
+
+    GLuint linkProgram(const GLenum vertexShaderID, const GLenum fragmentShaderID) {
+        GLuint programID = glCreateProgram();
+        glAttachShader(programID, vertexShaderID);
+        glAttachShader(programID, fragmentShaderID);
+        glLinkProgram(programID);
+
+        int success;
+        glGetProgramiv(programID, GL_LINK_STATUS, &success);
+        if (!success) {
+            Logger::getInstance().printError("SHADER_PROGRAM", "LINK_FAILED");
+            programID = 0;
+        }
+
+        glDetachShader(programID, fragmentShaderID);
+        glDetachShader(programID, vertexShaderID);
+        glDeleteShader(fragmentShaderID);
+        glDeleteShader(vertexShaderID);
+
+        return programID;
+    }
+
+    vec2f getRotatedPoint(const vec2f point, const float rotateAngle) {
+        return {
+            point.x * cosf(rotateAngle) - point.y * sinf(rotateAngle),
+            point.x * sinf(rotateAngle) + point.y * cosf(rotateAngle)
+        };
+    }
 }
 
 void Renderer::init() {
-    glGenVertexArrays(1, &vaoID);
-    glGenVertexArrays(1, &vaoTexID);
-    glGenBuffers(1, &vboID);
+    constexpr int MAX_RECTANGLES = 100;
 
-    // Create EBO
-    glGenBuffers(1, &eboID);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboID);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), &quadIndices, GL_STATIC_DRAW);
+    // setting ebo
+    constexpr int MAX_INDICES = MAX_RECTANGLES * 6;
+    unsigned int indices[MAX_INDICES];
 
-    // Allocate memory for common cells
-    glBindBuffer(GL_ARRAY_BUFFER, vboID);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+    for (int i = 0, offset = 0; i < MAX_INDICES; i += 6, offset += 4) {
+        indices[i] = indices[i + 5] = offset;
+        indices[i + 1] = offset + 1;
+        indices[i + 2] = indices[i + 3] = offset + 2;
+        indices[i + 4] = offset + 3; 
+    }
 
-    /* Setting VAO */
-    glBindVertexArray(vaoID);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboID);
+    glGenBuffers(1, &_ebo);
+    glBindBuffer(GL_ARRAY_BUFFER, _ebo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(indices), &indices[0], GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    // setting vbo
+    glGenBuffers(1, &_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+    glBufferData(GL_ARRAY_BUFFER, MAX_RECTANGLES * sizeof(Rectangle), nullptr, GL_DYNAMIC_DRAW);
+
+    // setting vao
+    glGenVertexArrays(1, &_vao);
+    glBindVertexArray(_vao);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
+    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+
+    // setting attributes
     glEnableVertexAttribArray(0);
-
-    glBindVertexArray(0);
-    /* End VAO */
-
-    /* Setting TexVAO */
-    glBindVertexArray(vaoTexID);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboID);
-    glBindBuffer(GL_ARRAY_BUFFER, vboID);
-
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glVertexAttribPointer(
+        0, sizeof(Vertex::pos) / sizeof(float), 
+        GL_FLOAT, GL_FALSE, 
+        sizeof(Vertex), (void*)(offsetof(Vertex, pos))
+    );
     glEnableVertexAttribArray(1);
-
-    glBindVertexArray(0);
-    /* End TexVAO */
-
-    generateTextures();
-
-    /* Setting uniforms */
-    GLuint programID;
-    programID = shaderProgram->getID();
-    shaderProgram->use();
-
-    glm::mat4 projection = glm::ortho(
-        0.0f, 2.f,
-        0.0f, 2.f
+    glVertexAttribPointer(
+        1, sizeof(Vertex::texCoord) / sizeof(float), 
+        GL_FLOAT, GL_FALSE, 
+        sizeof(Vertex), (void*)(offsetof(Vertex, texCoord))
+    );
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(
+        2, sizeof(Vertex::color) / sizeof(float), 
+        GL_FLOAT, GL_FALSE, 
+        sizeof(Vertex), (void*)(offsetof(Vertex, color))
+    );
+    glad_glEnableVertexAttribArray(3);
+    glVertexAttribIPointer(
+        3, 1, 
+        GL_INT, 
+        sizeof(Vertex), (void*)(offsetof(Vertex, texLayer))
     );
 
-    glUniform1i(glGetUniformLocation(programID, "uTex"), 0);
-    glUniformMatrix4fv(glGetUniformLocation(programID, "uProjection"), 1, GL_FALSE, glm::value_ptr(projection));
+    // setting textures
+    constexpr GLsizei TEX_SIZE = 128;
+    constexpr GLsizei LAYER_COUNT = 5;
+    constexpr const unsigned char* TEX_DATA_ARRAY[LAYER_COUNT] = {
+        &field[0],
+        &apple[0],
+        &body[0],
+        &tail[0],
+        &corner[0]
+    };
 
-    modelLoc = glGetUniformLocation(programID, "uModel");
-    texCoordLoc = glGetUniformLocation(programID, "uTexScale");
-    colorLoc = glGetUniformLocation(programID, "uColor");
+    glGenTextures(1, &_textureArray);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, _textureArray);
+    
+    glUseProgram(_shaderProgram);
 
-    glUseProgram(0);
-    /* End uniforms */
+    glUniform1i(glGetUniformLocation(_shaderProgram, "uTexArray"), 0);
+
+    // glm::mat4 projection = glm::ortho(
+    //     0.0f, 2.f,
+    //     0.0f, 2.f
+    // );
+
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexImage3D(
+        GL_TEXTURE_2D_ARRAY, 0, GL_RGBA,
+        TEX_SIZE, TEX_SIZE, LAYER_COUNT, 
+        0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr 
+    );
+
+    for (GLsizei layer = 0; layer < LAYER_COUNT; ++layer) {
+        glTexSubImage3D(
+            GL_TEXTURE_2D_ARRAY, 0,
+            0, 0, layer, 
+            TEX_SIZE, TEX_SIZE, 1,
+            GL_RGBA, GL_UNSIGNED_BYTE, 
+            TEX_DATA_ARRAY[layer]
+        );
+    }
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 }
 
-void Renderer::generateTextures() {
-    // field texture
-    GLsizei fieldTexWidth = 80;
-    GLsizei fieldTexHeight = 80;
-    bool isRepeatingWrap = true;
-    generateTextureObject(fieldTex, fieldPixels, fieldTexWidth, fieldTexHeight, isRepeatingWrap);
-
-    // apple texture 
-    GLsizei appleTexWidth = 48;
-    GLsizei appleTexHeight = 48;
-    generateTextureObject(appleTex, applePixels, appleTexWidth, appleTexHeight);
-
-    // pause texture
-    GLsizei pauseTexWidth = 40;
-    GLsizei pauseTexHeight = 200;
-    generateTextureObject(pauseTex, pausePixels, pauseTexWidth, pauseTexHeight);
-
-    // snake texture
-    GLsizei snakePartTexSize = 40;
-    generateTextureObject(snakeBodyTex, snakeBodyPixels, snakePartTexSize, snakePartTexSize);
-    generateTextureObject(snakeHeadTex, snakeHeadPixels, snakePartTexSize, snakePartTexSize);
-    generateTextureObject(snakeTailTex, snakeTailPixels, snakePartTexSize, snakePartTexSize);
-    generateTextureObject(snakeTurnTex, snakeTurnPixels, snakePartTexSize, snakePartTexSize);
-    // extra snake texture
-    generateTextureObject(tailTailTex, tailTailPixels, snakePartTexSize, snakePartTexSize);
-    generateTextureObject(capTex, capPixels, snakePartTexSize, snakePartTexSize);
-    generateTextureObject(tailCornerTex, TailCornerPixels, snakePartTexSize, snakePartTexSize);
-    GLsizei snakeEyeTexSize = 13;
-    generateTextureObject(eyeTex, eyePixels, snakeEyeTexSize, snakeEyeTexSize);
-    generateTextureObject(eyePointTex, eyePointPixels, snakeEyeTexSize, snakeEyeTexSize);
-    generateTextureObject(eyeDeadTex, eyeDeadPixels, snakeEyeTexSize, snakeEyeTexSize);
-
-}
-
-void Renderer::generateTextureObject(
-        GLuint& texture, 
-        const unsigned char textureArray[], 
-        GLsizei textureWidth, 
-        GLsizei textureHeight,
-        bool isRepeatingWrap
-    ) {
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-
-    // setting repeat texture (that was GL_CLAMP_TO_BORDER)
-    if (!isRepeatingWrap) {
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    } else {
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+void Renderer::updateBuffer() {
+    glBindVertexArray(_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+    if (!_needUpdateStatic) {
+        glBufferSubData(
+            GL_ARRAY_BUFFER, sizeof(Rectangle) * (_staticDrawingIndices + _offsetSemistaticIndices) / 6,
+            sizeof(Rectangle) * _rectangleArray.size(), _rectangleArray.data()
+        );
+        _offsetSemistaticIndices = _semistaticDrawingIndices;
     }
-    // setting filter texture
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    glTexImage2D(
-        GL_TEXTURE_2D,
-        0,
-        GL_RGBA,
-        textureWidth,
-        textureHeight,
-        0,
-        GL_RGBA,
-        GL_UNSIGNED_BYTE,
-        textureArray
-    );
+    else {
+        glBufferSubData(
+            GL_ARRAY_BUFFER, 0, 
+            sizeof(Rectangle) * _rectangleArray.size(), _rectangleArray.data()
+        );
+        _needUpdateStatic = false;
+    }
+    glBindVertexArray(0);
 }
 
-void Renderer::beginFrame() { glClear(GL_COLOR_BUFFER_BIT); }
+Renderer::Renderer()
+    : _shaderProgram(0), 
+      _zenMode(DrawConfig::zenMode),
+      _needUpdateStatic(false),
+      _needUpdateSemiStatic(false),
+      _staticMode(false),
+      _vao(0), _vbo(0), _ebo(0), 
+      _drawingIndices(0),
+      _staticDrawingIndices(0),
+      _semistaticDrawingIndices(0),
+      _offsetSemistaticIndices(0),
+      _origin(0.f, 0.f),
+      _contentScale(DrawConfig::contentScale)
+       {
+    GLuint vertexShader = createShader(GL_VERTEX_SHADER, shaders::vertexShaderSource);
+    GLuint fragmentShader = createShader(GL_FRAGMENT_SHADER, shaders::fragmentShaderSource);
 
-void Renderer::endFrame() {
+    if (vertexShader && fragmentShader)
+        _shaderProgram = linkProgram(vertexShader, fragmentShader);
+
+    if (_shaderProgram)
+        init();
+}
+
+Renderer::~Renderer() {
+    if (_vao) glDeleteVertexArrays(1, &_vao);
+    if (_vbo) glDeleteVertexArrays(1, &_vbo);
+    if (_ebo) glDeleteBuffers(1, &_ebo);
+    if (_shaderProgram) glDeleteProgram(_shaderProgram);
+}
+
+void Renderer::addObject(
+    vec2f size, vec2f pos, const TexType texType, 
+    const vec2f texCoord, const vec4f color, const float rotateAngle
+) {
+    if (!_staticMode)
+        _drawingIndices += 6;
+    else
+        _staticDrawingIndices += 6;
+
+    // size *= _contentScale * 0.5f;
+    // pos = (pos + size) * _contentScale;
+    size *= _contentScale * 0.5f;
+    pos *= _contentScale;
+    vec2f lb = (getRotatedPoint({-size.x,-size.y }, rotateAngle) + pos + _origin) / _viewSize;
+    vec2f rb = (getRotatedPoint({ size.x,-size.y }, rotateAngle) + pos + _origin) / _viewSize;
+    vec2f rt = (getRotatedPoint({ size.x, size.y }, rotateAngle) + pos + _origin) / _viewSize;
+    vec2f lt = (getRotatedPoint({-size.x, size.y }, rotateAngle) + pos + _origin) / _viewSize;
+
+    // size *= _contentScale;
+    // pos *= _contentScale;
+    // vec2f lb = (getRotatedPoint({    0.f,    0.f }, rotateAngle) + pos + _origin) / _viewSize;
+    // vec2f rb = (getRotatedPoint({ size.x,    0.f }, rotateAngle) + pos + _origin) / _viewSize;
+    // vec2f rt = (getRotatedPoint({ size.x, size.y }, rotateAngle) + pos + _origin) / _viewSize;
+    // vec2f lt = (getRotatedPoint({    0.f, size.y }, rotateAngle) + pos + _origin) / _viewSize;
+
+    int layer = static_cast<int>(texType);
+    _rectangleArray.push_back({
+        { lb, {0.f, texCoord.y},        color, layer },
+        { rb, {texCoord.x, texCoord.y}, color, layer },
+        { rt, {texCoord.x, 0.f},        color, layer },
+        { lt, {0.f, 0.f},               color, layer }
+    });
+}
+
+void Renderer::draw() {
+    updateBuffer();
+    glUseProgram(_shaderProgram);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glBindVertexArray(_vao);
+    glDrawElements(
+        GL_TRIANGLES, _drawingIndices + _staticDrawingIndices + _offsetSemistaticIndices, 
+        GL_UNSIGNED_INT, 0
+    );
+
+    _rectangleArray.clear();
+    _drawingIndices = 0;
     glBindVertexArray(0);
     glUseProgram(0);
-}
-
-void Renderer::useShaderProgram() {
-    shaderProgram->use();
-    glBindVertexArray(vaoTexID);
-}
-
-void Renderer::drawField() {
-    glm::mat4 model(1.f);
-    model = glm::translate(model, glm::vec3(1.f,1.f,0.f));
-
-    float texOversize = 10.f;
-    bool useBlend = false;
-    glUniform4f(colorLoc, 1.f, 1.f, 1.f, 1.0f);
-    drawObject(glm::value_ptr(model), useBlend, fieldTex, texOversize);
-}
-
-void Renderer::drawApple(const float x, const float y, const float scale) {
-    glm::mat4 model(1.0f);
-    model = glm::translate(model, glm::vec3(
-        x * NDCcellWidth + NDCcellWidth / 2.f,
-        y * NDCcellHeight + NDCcellHeight / 2.f,
-        0.f
-    ));
-    model = glm::scale(model, glm::vec3(NDCcellWidth / 2.f * scale));
-
-    bool useBlend = true;
-    glUniform4f(colorLoc, 1.f, 1.f, 1.f, 1.0f);
-    drawObject(glm::value_ptr(model), useBlend, appleTex);
-}
-
-// TODO: set default snakeType = BODY
-void Renderer::drawSnake(const float x, const float y, const SnakeType snakeType, const float rotateAngle) {
-    GLuint snakePartTex;
-    switch(snakeType) {
-        case SnakeType::BODY: snakePartTex = snakeBodyTex; break;
-        case SnakeType::HEAD: snakePartTex = snakeHeadTex; break;
-        case SnakeType::TAIL: snakePartTex = snakeTailTex; break;
-        case SnakeType::CORNER: snakePartTex = snakeTurnTex; break;
-        case SnakeType::TAIL_TAIL: snakePartTex = tailTailTex; break;
-        case SnakeType::CAP: snakePartTex = capTex; break;
-        case SnakeType::TAIL_CORNER: snakePartTex = tailCornerTex; break;
-    }
-
-    glm::mat4 model(1.0f);
-    model = glm::translate(model, glm::vec3(
-        x * NDCcellWidth + NDCcellWidth / 2.f,
-        y * NDCcellHeight + NDCcellHeight / 2.f,
-        0.f
-    ));
-    model = glm::scale(model, glm::vec3(NDCcellWidth /  2.f));
-    // rotate in radians (pi, 2pi, 3pi etc.)
-    model = glm::rotate(model, rotateAngle, {0, 0, 1.f});
-
-    bool useBlend = true;
-    glUniform4f(colorLoc, 1.f, 1.f, 1.f, 1.0f);
-    drawObject(glm::value_ptr(model), useBlend, snakePartTex);
-}
-
-void Renderer::drawEyes(const float x, const float y, const float eyeAngle, const float eyePointAngle, const bool isSnakeDead) {
-    constexpr bool useBlend = true;
-    constexpr float xEyeOffsetPxl = 0.02;
-    constexpr float yEyeOffsetPxl = 0.015;
-    
-    glm::mat4 model(1.f);
-    model = glm::translate(model, glm::vec3(
-        x * NDCcellWidth,
-        y * NDCcellHeight,
-        0.f
-    ));
-    model = glm::translate(model, glm::vec3(
-        NDCcellHeight / 2.f,
-        NDCcellHeight / 2.f,
-        0.f
-    ));
-    model = glm::rotate(model, eyeAngle, {0.f, 0.f, 1.f});
-    model = glm::translate(model, glm::vec3( 
-        -NDCcellHeight / 2.f,
-        -NDCcellHeight / 2.f,
-        0.f
-    )); 
-    model = glm::translate(model, glm::vec3(xEyeOffsetPxl, yEyeOffsetPxl, 0.f));
-
-    glm::mat4 model2(model);
-    model2 = glm::translate(model2, glm::vec3(0.f, 0.07f, 0.f));
-
-    if (!isSnakeDead) {
-        model = glm::rotate(model, eyePointAngle, {0.f, 0.f, 1.f});
-        model2 = glm::rotate(model2, eyePointAngle, {0.f, 0.f, 1.f});
-    }
-    model = scale(model, glm::vec3(NDCcellWidth / 6.154f));
-    model2 = scale(model2, glm::vec3(NDCcellWidth / 6.154f));
-
-    glUniform4f(colorLoc, 1.f, 1.f, 1.f, 1.0f);
-    drawObject(value_ptr(model), useBlend, eyeTex);
-    drawObject(value_ptr(model2), useBlend, eyeTex);
-    if (!isSnakeDead) {
-        drawObject(value_ptr(model), useBlend, eyePointTex);
-        drawObject(value_ptr(model2), useBlend, eyePointTex);
-    } else {
-        drawObject(value_ptr(model), useBlend, eyeDeadTex);
-        drawObject(value_ptr(model2), useBlend, eyeDeadTex);
-    }
-}
-
-void Renderer::drawPause() {
-    // left stick
-    glm::mat4 model(1.0f);
-    model = glm::translate(model, glm::vec3(
-        8.f * NDCcellWidth + NDCcellWidth / 2.f,
-        10.f * NDCcellWidth,
-        0.f
-    ));
-    model = glm::scale(model, glm::vec3(0.05f, 0.25f, 0.f));
-
-    // right stick
-    glm::mat4 model2(1.0f);
-    model2 = glm::translate(model2, glm::vec3(
-        11.f * NDCcellWidth + NDCcellWidth / 2.f,
-        10.f * NDCcellWidth,
-        0.f
-    ));
-    model2 = glm::scale(model2, glm::vec3(0.05f, 0.25f, 0.f));
-
-    glUniform4f(colorLoc, 1.f, 1.f, 1.f, 0.5f);
-    bool useBlend = true;
-    drawObject(glm::value_ptr(model), useBlend, pauseTex);
-    drawObject(glm::value_ptr(model2), useBlend, pauseTex);
-}
-
-void Renderer::drawObject(const GLfloat* const modelPtr, const bool useBlend, const GLuint texture, const float textureSize) {
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, modelPtr);
-    glUniform2f(texCoordLoc, textureSize, textureSize);
-
-    if (useBlend) {
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    }
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture);
-
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-    if (useBlend) {
-        glDisable(GL_BLEND);
-    }
 }

@@ -1,213 +1,115 @@
 #include "window.hpp" 
 
 #include "../config/window_config.hpp"
+#include "../config/draw_config.hpp"
 #include "../core/action.hpp"
 #include "../core/logger.hpp"
-#include "../render/textures/apple_texture.hpp"
 
 #include <glad/glad.h>
-#include <GLFW/glfw3.h> // after glad
+#include <GLFW/glfw3.h>
 
 #include <string>
 #include <iostream>
 
 inline static Action keyMap[GLFW_KEY_LAST + 1];
 
-Window::Window() :
-      scoreTitle(-1),
-      fpsTitle(0),
-      updateTitle(false),
-      terminated(false)
-    {
-    if (!glfwInit()) {
-        Logger::getInstance().printError("Window", "GLFW_initialization_failed");
-        exit(1);
+namespace {
+    void mapKey() {
+        for (int i = 0; i <= GLFW_KEY_LAST; ++i)
+            keyMap[i] = Action::COUNT;
+        
+        keyMap[GLFW_KEY_ESCAPE] = Action::Exit;
+        keyMap[GLFW_KEY_P] = Action::Pause;
+
+        keyMap[GLFW_KEY_W]  = Action::MoveUp;
+        keyMap[GLFW_KEY_UP] = Action::MoveUp;
+
+        keyMap[GLFW_KEY_A]    = Action::MoveLeft;
+        keyMap[GLFW_KEY_LEFT] = Action::MoveLeft;
+
+        keyMap[GLFW_KEY_S]    = Action::MoveDown;
+        keyMap[GLFW_KEY_DOWN] = Action::MoveDown;
+
+        keyMap[GLFW_KEY_D]     = Action::MoveRight;
+        keyMap[GLFW_KEY_RIGHT] = Action::MoveRight;
+
+        keyMap[GLFW_KEY_EQUAL] = Action::ScaleUp;
+        keyMap[GLFW_KEY_MINUS] = Action::ScaleDown;
+
+        keyMap[GLFW_KEY_Z] = Action::ZenMode;
     }
-
-    // Set OpenGL version 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-    // Set window invisible to setting it without visible effects
-    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-    //glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
-
-    // Set monitor info
-    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-    m_mWidth = mode->width;
-    m_mHeight = mode->height;
-    m_mRefreshRate = mode->refreshRate;
-    // Set window info
-    m_width = WindowConfig::windowWidth;
-    m_height = WindowConfig::windowHeight;
-    m_fullscreen = WindowConfig::fullscreen;
-    m_windowXPos = m_mWidth / 2 - m_width / 2;
-    m_windowYPos = m_mHeight / 2 - m_height / 2;
-
-    // Create window
-    m_handle = glfwCreateWindow(
-        m_width,
-        m_height,
-        "Snake | Score: 0 | FPS: ",
-        nullptr,
-        nullptr
-    );
-    if (!m_handle) {
-        Logger::getInstance().printError("Window", "GLFW_window_creation_failed");
-        terminate();
-        exit(1);
-    }
-
-    glfwMakeContextCurrent(m_handle);
-
-    // set pointer to this window -- it's needed to work with some callback funcs
-    glfwSetWindowUserPointer(m_handle, this);    
-
-    glfwSetWindowSizeLimits(m_handle, 800, 800, m_mWidth, m_mHeight);
-    glfwSetWindowPos(m_handle, m_windowXPos, m_windowYPos);
-
-    // Load OpenGL funcs
-    if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-        Logger::getInstance().printError("Window", "GLFW_load_OpenGL_funcs_failed");
-        terminate();
-        exit(1);
-    }
-
-    // Set window icon title
-    GLFWimage icon;
-    icon.width = 48;
-    icon.height = 48;
-    icon.pixels = applePixels;
-    glfwSetWindowIcon(m_handle, 1, &icon);
-
-    mapKey();
-
-    // Callback funcs
-    glfwSetWindowSizeCallback(m_handle, &Window::sizeCallback);
-    glfwSetErrorCallback(&Window::errorCallback);
-    glfwSetKeyCallback(m_handle, &Window::keyCallback);
-    glfwSetWindowRefreshCallback(m_handle, &Window::refreshCallback);
-
-    glfwSwapInterval(1);
-    glfwShowWindow(m_handle);
-
-    if (m_fullscreen) {
-        glfwSetWindowMonitor(
-            m_handle,
-            glfwGetPrimaryMonitor(),
-            0,
-            0,
-            m_mWidth,
-            m_mHeight,
-            m_mRefreshRate
-        );
-        glViewport((m_mWidth - 800) / 2, (m_mHeight - 800) / 2, 800, 800);
-    } else {
-        glViewport((m_width - 800) / 2, (m_height - 800) / 2, 800, 800);
-    }
-}
-
-Window::~Window() {
-    terminate();
-    
-    if (m_fullscreen)
-        WindowConfig::fullscreen = true;
-    else
-        WindowConfig::fullscreen = false;
-
-    WindowConfig::windowWidth = m_width;
-    WindowConfig::windowHeight = m_height;
-}
-
-void Window::terminate() { 
-    if (!terminated) {
-        glfwTerminate(); 
-        terminated = true;
-    }
-}
-
-void Window::close() const { glfwSetWindowShouldClose(m_handle, GLFW_TRUE); }
-bool Window::shouldClose() { return static_cast<bool>(glfwWindowShouldClose(m_handle)); }
-
-void Window::pollEvents() {
-    glfwPollEvents();
-    if (updateTitle) {
-        setTitle();
-        updateTitle = false;
-    }
-}
-
-void Window::swapBuffers() { glfwSwapBuffers(m_handle); }
-
-void Window::updateScore(const bool toIncrement) {
-    scoreTitle = toIncrement ? scoreTitle + 1 : -1;
-    updateTitle = true;
-}
-
-void Window::mapKey() {
-    for (int i = 0; i <= GLFW_KEY_LAST; ++i)
-        keyMap[i] = Action::COUNT;
-    
-    keyMap[GLFW_KEY_ESCAPE] = Action::Exit;
-    keyMap[GLFW_KEY_P] = Action::Pause;
-
-    keyMap[GLFW_KEY_W]  = Action::MoveUp;
-    keyMap[GLFW_KEY_UP] = Action::MoveUp;
-
-    keyMap[GLFW_KEY_A]    = Action::MoveLeft;
-    keyMap[GLFW_KEY_LEFT] = Action::MoveLeft;
-
-    keyMap[GLFW_KEY_S]    = Action::MoveDown;
-    keyMap[GLFW_KEY_DOWN] = Action::MoveDown;
-
-    keyMap[GLFW_KEY_D]     = Action::MoveRight;
-    keyMap[GLFW_KEY_RIGHT] = Action::MoveRight;
-}
-
-void Window::setTitle() {
-    std::string title = "Snake | Score: " + std::to_string(scoreTitle) + " | FPS: " + std::to_string(fpsTitle);
-    glfwSetWindowTitle(m_handle, title.c_str());
 }
 
 void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     Window* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
-    
+
     if (self) {
+        Mod selfMods = Mod::EMPTY;
+        if (mods == GLFW_MOD_CONTROL)
+            selfMods = Mod::CTRL;
+
+        // fullscreen -- ALT ENTER
         if (mods == GLFW_MOD_ALT && action == GLFW_PRESS && key == GLFW_KEY_ENTER) {
-            if (!self->m_fullscreen) {
-                glfwGetWindowPos(self->m_handle, &self->m_windowXPos, &self->m_windowYPos);
+            const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+            if (!self->_fullscreen) {
+                glfwGetWindowPos(self->_handle, &self->_windowParam.z, &self->_windowParam.w);
                 glfwSetWindowMonitor(
-                    window, 
-                    glfwGetPrimaryMonitor(), 
-                    0, 
-                    0, 
-                    self->m_mWidth, 
-                    self->m_mHeight, 
-                    self->m_mRefreshRate
+                    window, glfwGetPrimaryMonitor(), 
+                    0, 0, mode->width, mode->height,
+                    mode->refreshRate
                 );
             } else {
                 glfwSetWindowMonitor(
-                    window,
-                    nullptr,
-                    self->m_windowXPos,
-                    self->m_windowYPos,
-                    self->m_width,
-                    self->m_height,
-                    self->m_mRefreshRate
+                    window, nullptr,
+                    self->_windowParam.z, self->_windowParam.w,
+                    self->_windowParam.x, self->_windowParam.y,
+                    mode->refreshRate
                 );
-                // if smth goes wrong with sizeCallback
-                glViewport((self->m_width - 800) / 2, (self->m_height - 800) / 2, 800, 800); 
+                // self->setViewport();
             }
-            self->m_fullscreen = !self->m_fullscreen;
+            self->_fullscreen = !self->_fullscreen;
         }
 
-        Action aKey = keyMap[key];
-        if (aKey == Action::COUNT)
+        if (keyMap[key] == Action::COUNT)
             return;
         
-        self->inputManagerSetKey(aKey, action);
+        self->inputManagerSetKey(keyMap[key], action, selfMods);
     }
+}
+
+void Window::sizeCallback(GLFWwindow* window, int width, int height) {
+    Window* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    if (self && width != mode->width && height != mode->height) {
+        self->_windowParam.x = width;
+        self->_windowParam.y = height;
+    }
+}
+
+void Window::framebufferSizeCallback(GLFWwindow* window, int width, int height) {
+    Window* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    if (self) {
+        self->_bufferSize = {width, height};
+        self->setViewport();
+    }
+}
+
+void Window::contentSizeCallback(GLFWwindow* window, float xScale, float yScale) {
+    Window* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    if (self) {
+        self->_windowScale = xScale;
+
+        if (xScale != yScale)
+            Logger::getInstance().printInfo("WINDOW", "xScale != yScale. xScale will be used");
+    }
+}
+
+void Window::refreshCallback(GLFWwindow* window) {
+    Window* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    if (self && self->refreshScreen)
+        self->refreshScreen();
+
+    glfwSwapBuffers(window);
 }
 
 void Window::errorCallback(const int error_code, const char *description) {
@@ -215,20 +117,149 @@ void Window::errorCallback(const int error_code, const char *description) {
     Logger::getInstance().printError("WINDOW", strDescription.c_str());
 }
 
-void Window::sizeCallback(GLFWwindow* window, int width, int height) {
-    Window* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
-    if (self && width != self->m_mWidth && height != self->m_mHeight) {
-        self->m_width = width;
-        self->m_height = height;
-    }
-    glViewport((width - 800) / 2, (height - 800) / 2, 800, 800); 
+void Window::setTitle() {
+    std::string title = "Snake | Score: " + std::to_string(_scoreTitle) + " | FPS: " + std::to_string(_fpsTitle);
+    glfwSetWindowTitle(_handle, title.c_str());
 }
 
-void Window::refreshCallback(GLFWwindow* window) {
-    Window* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
+void Window::setViewport() {
+    vec2i pos = (_bufferSize - static_cast<vec2i>(static_cast<vec2f>(_viewSize) * _windowScale )) / 2;
+    vec2i size = static_cast<vec2i>(static_cast<vec2f>(_viewSize) * _windowScale);
+    glViewport(pos.x, pos.y, size.x, size.y);
+}
 
-    if (self->refreshScreen)
-        self->refreshScreen();
+void Window::updateView() {
+    if (_zenMode) {
+        _viewSize = static_cast<vec2i>(static_cast<vec2f>(_fieldSize) * _contentScale);
+        _windowParam.x = _viewSize.x;
+        _windowParam.y = _viewSize.y;
+    }
+    else {
+        _viewSize = {
+            static_cast<int>(static_cast<float>((_fieldSize.x <= 800 ? 1200 : _fieldSize.x + 400)) * _contentScale),
+            static_cast<int>(static_cast<float>((_fieldSize.x <= 800 ? 800 : _fieldSize.y)) * _contentScale)
+        };
 
-    glfwSwapBuffers(window);
+        if (_windowParam.x < _viewSize.x)
+            _windowParam.x = _viewSize.x;
+        if (_windowParam.y < _viewSize.y + 40)
+            _windowParam.y = _viewSize.y + 40;
+    }
+
+    glfwSetWindowSizeLimits(
+        _handle, 
+        _viewSize.x, _zenMode ? _viewSize.y : _viewSize.y + 40, 
+        GLFW_DONT_CARE, GLFW_DONT_CARE
+    );
+
+    glfwSetWindowSize(_handle, _windowParam.x, _windowParam.y);
+
+    setViewport();
+}
+
+Window::Window()
+    : _windowParam(WindowConfig::windowWidth, WindowConfig::windowHeight, 0, 0),
+      _bufferSize(WindowConfig::windowWidth, WindowConfig::windowHeight),
+      _viewSize(WindowConfig::windowWidth, WindowConfig::windowHeight),
+      _windowScale(1.f),
+      _contentScale(DrawConfig::contentScale),
+      _scoreTitle(-1),
+      _fpsTitle(0),
+      _fullscreen(WindowConfig::fullscreen),
+      _zenMode(DrawConfig::zenMode),
+      _updateTitle(false)
+    {
+    if (!glfwInit()) {
+        Logger::getInstance().printError("Window", "GLFW initialization failed");
+        exit(1);
+    }
+
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+
+    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    _windowParam.z = mode->width / 2 - _windowParam.x / 2;
+    _windowParam.w = mode->height / 2 - _windowParam.y / 2;
+
+    _handle = glfwCreateWindow(
+        _windowParam.x, _windowParam.y,
+        "Snake | Score: 0 | FPS: ",
+        nullptr, nullptr
+    );
+    if (!_handle) {
+        Logger::getInstance().printError("Window", "window creation failed");
+        glfwTerminate(); 
+        exit(1);
+    }
+
+    glfwMakeContextCurrent(_handle);
+    if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        Logger::getInstance().printError("Window", "OpenGL funcs initialization failed");
+        glfwTerminate(); 
+        exit(1);
+    }
+
+    glfwSetWindowUserPointer(_handle, this);    
+    glfwSetWindowSizeLimits(_handle, 1200, 800, mode->width, mode->height);
+    glfwSetWindowPos(_handle, _windowParam.z, _windowParam.w);
+
+    // GLFWimage icon;
+    // icon.width = 48;
+    // icon.height = 48;
+    // icon.pixels = applePixels;
+    // glfwSetWindowIcon(m_handle, 1, &icon);
+
+    mapKey();
+
+    glfwSetWindowSizeCallback(_handle, Window::sizeCallback);
+    glfwSetFramebufferSizeCallback(_handle, Window::framebufferSizeCallback);
+    glfwSetWindowRefreshCallback(_handle, Window::refreshCallback);
+    glfwSetKeyCallback(_handle, Window::keyCallback);
+    glfwSetWindowContentScaleCallback(_handle, Window::contentSizeCallback);
+    glfwSetErrorCallback(Window::errorCallback);
+
+    glfwSwapInterval(1);
+    glfwShowWindow(_handle);
+
+    if (_fullscreen) {
+        glfwSetWindowMonitor(
+            _handle, glfwGetPrimaryMonitor(),
+            0, 0, mode->width, mode->height,
+            mode->refreshRate
+        );
+    }
+
+    setViewport();
+}
+
+Window::~Window() {
+    glfwTerminate();
+    
+    if (_fullscreen)
+        WindowConfig::fullscreen = true;
+    else
+        WindowConfig::fullscreen = false;
+
+    WindowConfig::windowWidth = _windowParam.x;
+    WindowConfig::windowHeight = _windowParam.y;
+}
+
+void Window::close() const { glfwSetWindowShouldClose(_handle, GLFW_TRUE); }
+bool Window::shouldClose() { return static_cast<bool>(glfwWindowShouldClose(_handle)); }
+
+void Window::pollEvents() {
+    glfwPollEvents();
+    if (_updateTitle) {
+        setTitle();
+        _updateTitle = false;
+    }
+}
+
+void Window::swapBuffers() { glfwSwapBuffers(_handle); }
+
+void Window::updateScore(const bool toIncrement) {
+    _scoreTitle = toIncrement ? _scoreTitle + 1 : -1;
+    _updateTitle = true;
 }

@@ -11,6 +11,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(DEBUG_MODE ON)
 
+if(DEBUG_MODE)
+    set(CMAKE_BUILD_TYPE Debug)
+endif()
+
 # ===========================
 # executable
 # ===========================
@@ -35,7 +39,6 @@ target_sources(snake PRIVATE
     src/main.cpp
     src/window/window.cpp
     src/render/renderer.cpp
-    src/render/shader_program.cpp
     src/game/game.cpp
     src/game/field.cpp
     src/game/apple.cpp

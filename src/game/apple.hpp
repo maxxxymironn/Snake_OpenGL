@@ -1,17 +1,17 @@
 #pragma once
-#include "cell.hpp"
+#include "../core/vector.hpp"
 #include <vector>
 
 class Apple {
-    Cell m_position;
-    bool m_isNew;
+    vec2i _position;
+    bool _isNew;
 
 public:
-    Apple(): m_isNew(false) {}
-    void generateApple(const std::vector<Cell>& freeCells);
+    Apple(): _isNew(false) {}
+    void generateApple(const std::vector<vec2i>& freeCells);
 
-    const Cell& getPosition() const { return m_position; }
+    const vec2i getPosition() const { return _position; }
 
-    bool isNew() const { return m_isNew; }
-    void setOld() { m_isNew = false; }
+    bool isNew() const { return _isNew; }
+    void setOld() { _isNew = false; }
 };

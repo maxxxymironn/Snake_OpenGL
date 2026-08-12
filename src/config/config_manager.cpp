@@ -4,7 +4,7 @@
 #include "core_config.hpp"
 #include "game_config.hpp"
 #include "window_config.hpp"
-#include "renderer_config.hpp"
+#include "draw_config.hpp"
 
 #include <cstdlib>
 #include <exception>
@@ -23,18 +23,20 @@
 #include <windows.h>
 #endif
 
-void printError(const std::string& description) {
-    Logger::getInstance().printError("CONFIG_MANAGER", description.c_str());
-}
-
-bool isSuccessRead(int& iValue, const std::string& sValue, const std::string& configVarName) {
-    try {
-        iValue = std::stoi(sValue);
-    } catch (const std::exception& e) {
-        printError("\"" + configVarName + "\" has invalid value");
-        return false;
+namespace {
+    void printError(const std::string& description) {
+        Logger::getInstance().printError("CONFIG_MANAGER", description.c_str());
     }
-    return true;
+
+    bool isSuccessRead(int& iValue, const std::string& sValue, const std::string& configVarName) {
+        try {
+            iValue = std::stoi(sValue);
+        } catch (const std::exception& e) {
+            printError("\"" + configVarName + "\" has invalid value");
+            return false;
+        }
+        return true;
+    }
 }
 
 ConfigManager::ConfigManager() : file(getFilePath()), readyToSaveFile(true) {
@@ -117,8 +119,9 @@ bool ConfigManager::readFile() {
         }
 
         if (configVar == "fullscreen") {
-            if (value == "true")
+            if (value == "true") {
                 WindowConfig::fullscreen = true;
+            }
             else if (value == "false")
                 WindowConfig::fullscreen = false;
             else
@@ -142,6 +145,27 @@ bool ConfigManager::readFile() {
             else {
                 WindowConfig::windowWidth = iX;
                 WindowConfig::windowHeight = iY;
+            }
+        }
+        else if (configVar == "zenMode") {
+            if (value == "true")
+                DrawConfig::zenMode = true;
+            else if (value == "false")
+                DrawConfig::zenMode = false;
+            else
+                printError("\"zenMode\" value should be \"true\"/\"false\"");
+        }
+        else if (configVar == "contentScale") {
+            int contextScale;
+            if (!isSuccessRead(contextScale, value, configVar)) {
+                continue;
+            }
+            else if (50 > contextScale || contextScale > 200) {
+                printError("\"" + configVar + "\" incorrect (50 < scale < 200)");
+            }
+            else {
+                float scaleCoeff = static_cast<float>(contextScale) / 100.f;
+                DrawConfig::contentScale = scaleCoeff;
             }
         }
         else if (configVar == "maxScore") {
@@ -257,14 +281,6 @@ bool ConfigManager::readFile() {
             else
                 printError("\"" + configVar + "\" has invalid value");
         } 
-        else if (configVar == "renderMode") {
-            if (value == "TEXTURE")
-                RenderConfig::isTextureMode = true;
-            else if (value == "PRIMITIVE")
-                RenderConfig::isTextureMode = false;
-            else
-                printError("\"" + configVar + "\" has invalid value");
-        }
         else {
             printError("\"" + configVar + "\" is unknown configuration variable");
         }
@@ -280,7 +296,10 @@ bool ConfigManager::saveFile() {
     if (!out.is_open())
         return false;
 
-    std::string strFullscreen = WindowConfig::fullscreen ? "true" : "false";
+    std::string_view strFullscreen = WindowConfig::fullscreen ? "true" : "false";
+    std::string_view strZenMode = DrawConfig::zenMode ? "true" : "false";
+    
+    int contentScale = static_cast<int>(DrawConfig::contentScale * 100.f);
 
     std::string strGameMode;
     switch (GameConfig::gameMode) {
@@ -312,14 +331,13 @@ bool ConfigManager::saveFile() {
         strGameSpeed = "MEDIUM";
     } 
 
-    std::string strRenderMode;
-    strRenderMode = RenderConfig::isTextureMode ? "TEXTURE" : "PRIMITIVE";
-
     out << 
     "# Window information\n"
     "fullscreen = " << strFullscreen << "\n"
     "windowSize = " << WindowConfig::windowWidth << " " 
                     << WindowConfig::windowHeight << "\n"
+    "zenMode = " << strZenMode << "\n"
+    "contentScale = " << std::to_string(contentScale) << "\n"
 
     "\n# Game information\n"
     "gameMode = " << strGameMode << "\n"
@@ -327,9 +345,6 @@ bool ConfigManager::saveFile() {
 
     "\n# Core information\n"
     "gameSpeed = " << strGameSpeed << "\n"
-
-    "\n# Renderer information\n"
-    "renderMode = " << strRenderMode << "\n"
     
     "\n# Statistics\n"
     "maxScore = " << GameConfig::maxScore << "\n"
