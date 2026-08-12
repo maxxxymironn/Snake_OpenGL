@@ -172,8 +172,7 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 	bool updatedStaticData = false;
 
 	/* ###### static objects ###### */
-	if (renderer.getNeedUpdateStatic()) {
-		renderer.setStaticMode(true);
+	if (renderer.needRefreshStaticBuffer()) {
 		renderer.setOrigin(vec2f{ 0.f, 0.f });
 
 		// =================== field
@@ -220,10 +219,10 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 
 			// ~~~~~~~~~~~~~~~~~~~ icons on the left panel
 		}
-		
+
 		updatedStaticData = true;
 		renderer.setOrigin(fieldPos);
-		renderer.setStaticMode(false);
+		renderer.refreshStaticBuffer();
 	}
 
 	/* ###### dynamic objects ###### */
@@ -237,7 +236,7 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 	vec2i head = *snakeBody.begin();
 
 	static vec2i lastHead(*(snakeBody.begin() + 1));
-	if (head != lastHead || updatedStaticData) {
+	if (clock.getSnakeMovingCoeff() > 0.5f && (head != lastHead || updatedStaticData)) {
 		lastHead = head;
 		for (auto it = snakeBody.rbegin() + 1; it + 1 != snakeBody.rend(); ++it) {
 			pos = static_cast<vec2f>(*it) * cellSize + size * 0.5f;
@@ -277,9 +276,10 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 			);
 		}
 
-		renderer.saveSemistaticIndices();
+		renderer.refreshDynamicBuffer();
 	}
 
+	/* ###### stream objects ###### */
 	// =================== apple
 	pos = static_cast<vec2f>(game.apple().getPosition()) * cellSize + size * 0.5f;
 	texCoord = { 1.f, 1.f };
@@ -323,6 +323,7 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 	// // if  (game.status() == GameStatus::PAUSE)
 	// // 	renderer.drawPause();
 
+	renderer.refreshStreamBuffer();
 	renderer.draw();
 }
 

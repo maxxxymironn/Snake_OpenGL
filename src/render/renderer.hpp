@@ -6,25 +6,29 @@
 
 #include <vector>
 
-class ShaderProgram;
-
 class Renderer {
 private:
     unsigned int _shaderProgram;
     bool _zenMode;
-    bool _needUpdateStatic;
+    bool _needRefreshStaticBuffer;
     bool _needUpdateSemiStatic;
-    bool _staticMode;
 
-    unsigned int _vao;
-    unsigned int _vbo;
+    unsigned int _staticVAO;
+    unsigned int _staticVBO;
+
+    unsigned int _dynamicVAO;
+    unsigned int _dynamicVBO;
+
+    unsigned int _streamVAO;
+    unsigned int _streamVBO;
+
     unsigned int _ebo;
     unsigned int _textureArray;
 
     unsigned int _drawingIndices;
     unsigned int _staticDrawingIndices;
-    unsigned int _semistaticDrawingIndices;
-    unsigned int _offsetSemistaticIndices;
+    unsigned int _dynamicDrawingIndices;
+    unsigned int _streamDrawingIndices;
 
     vec2f _origin;
     vec2f _viewSize;
@@ -33,7 +37,6 @@ private:
     std::vector<Rectangle> _rectangleArray;
 
     void init();
-    void updateBuffer();
 
 public:
     Renderer();
@@ -41,19 +44,15 @@ public:
 
     bool getInitializeInfo() const { return static_cast<bool>(_shaderProgram); }
 
-    bool getNeedUpdateStatic() const { return _needUpdateStatic; }
+    void refreshStaticBuffer();
+    void refreshDynamicBuffer();
+    void refreshStreamBuffer();
+
+    bool needRefreshStaticBuffer() const { return _needRefreshStaticBuffer; }
 
     bool isZenMode() const { return _zenMode; }
 
-    void setStaticMode(const bool staticMode) { _staticMode = staticMode; }
-
     void setOrigin(const vec2f origin) { _origin = origin * _contentScale - _viewSize; }
-
-    void saveSemistaticIndices() { 
-        _semistaticDrawingIndices = _drawingIndices;
-        _drawingIndices = 0;
-        _offsetSemistaticIndices = 0;
-    }
 
     void addObject(
         vec2f size, vec2f pos, const TexType texType, 
@@ -65,8 +64,7 @@ public:
     void setViewSize(const vec2i viewSize) { 
         _origin += _viewSize;
         _viewSize = static_cast<vec2f>(viewSize) * 0.5f; 
-        _needUpdateStatic = true; 
-        _staticDrawingIndices = 0;
+        _needRefreshStaticBuffer = true; 
         _origin -= _viewSize;
     }
     void setContentScale(const float contentScale) { _contentScale = contentScale; }

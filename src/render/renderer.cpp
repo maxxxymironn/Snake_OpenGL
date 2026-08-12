@@ -53,6 +53,45 @@ namespace {
         return programID;
     }
 
+    void genBuffer(unsigned int& vbo, const GLenum drawType, const int rectangleCount) {
+        glGenBuffers(1, &vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, rectangleCount * sizeof(Rectangle), nullptr, drawType);
+    }
+
+    void genVertexArray(unsigned int& vao, const unsigned int vbo, const unsigned int ebo) {
+        glGenVertexArrays(1, &vao);
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+        // setting attributes
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(
+            0, sizeof(Vertex::pos) / sizeof(float), 
+            GL_FLOAT, GL_FALSE, 
+            sizeof(Vertex), (void*)(offsetof(Vertex, pos))
+        );
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(
+            1, sizeof(Vertex::texCoord) / sizeof(float), 
+            GL_FLOAT, GL_FALSE, 
+            sizeof(Vertex), (void*)(offsetof(Vertex, texCoord))
+        );
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(
+            2, sizeof(Vertex::color) / sizeof(float), 
+            GL_FLOAT, GL_FALSE, 
+            sizeof(Vertex), (void*)(offsetof(Vertex, color))
+        );
+        glEnableVertexAttribArray(3);
+        glVertexAttribIPointer(
+            3, 1, 
+            GL_INT, 
+            sizeof(Vertex), (void*)(offsetof(Vertex, texLayer))
+        );
+    }
+
     vec2f getRotatedPoint(const vec2f point, const float rotateAngle) {
         return {
             point.x * cosf(rotateAngle) - point.y * sinf(rotateAngle),
@@ -62,7 +101,10 @@ namespace {
 }
 
 void Renderer::init() {
-    constexpr int MAX_RECTANGLES = 100;
+    constexpr int STATIC_RECTANGLES = 20;
+    constexpr int DYNAMIC_RECTANGLES = 1600;
+    constexpr int STREAM_RECTANGLES = 20;
+    constexpr int MAX_RECTANGLES = STATIC_RECTANGLES + DYNAMIC_RECTANGLES + STREAM_RECTANGLES;
 
     // setting ebo
     constexpr int MAX_INDICES = MAX_RECTANGLES * 6;
@@ -79,42 +121,15 @@ void Renderer::init() {
     glBindBuffer(GL_ARRAY_BUFFER, _ebo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(indices), &indices[0], GL_STATIC_DRAW);
 
-    // setting vbo
-    glGenBuffers(1, &_vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    glBufferData(GL_ARRAY_BUFFER, MAX_RECTANGLES * sizeof(Rectangle), nullptr, GL_DYNAMIC_DRAW);
+    // setting VBOs
+    genBuffer(_staticVBO, GL_STATIC_DRAW, STATIC_RECTANGLES);
+    genBuffer(_dynamicVBO, GL_DYNAMIC_DRAW, DYNAMIC_RECTANGLES);
+    genBuffer(_streamVBO, GL_STREAM_DRAW, STREAM_RECTANGLES);
 
-    // setting vao
-    glGenVertexArrays(1, &_vao);
-    glBindVertexArray(_vao);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-
-    // setting attributes
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(
-        0, sizeof(Vertex::pos) / sizeof(float), 
-        GL_FLOAT, GL_FALSE, 
-        sizeof(Vertex), (void*)(offsetof(Vertex, pos))
-    );
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(
-        1, sizeof(Vertex::texCoord) / sizeof(float), 
-        GL_FLOAT, GL_FALSE, 
-        sizeof(Vertex), (void*)(offsetof(Vertex, texCoord))
-    );
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(
-        2, sizeof(Vertex::color) / sizeof(float), 
-        GL_FLOAT, GL_FALSE, 
-        sizeof(Vertex), (void*)(offsetof(Vertex, color))
-    );
-    glad_glEnableVertexAttribArray(3);
-    glVertexAttribIPointer(
-        3, 1, 
-        GL_INT, 
-        sizeof(Vertex), (void*)(offsetof(Vertex, texLayer))
-    );
+    // setting VAOs
+    genVertexArray(_staticVAO, _staticVBO, _ebo);
+    genVertexArray(_dynamicVAO, _dynamicVBO, _ebo);
+    genVertexArray(_streamVAO, _streamVBO, _ebo);
 
     // setting textures
     constexpr GLsizei TEX_SIZE = 128;
@@ -134,15 +149,10 @@ void Renderer::init() {
 
     glUniform1i(glGetUniformLocation(_shaderProgram, "uTexArray"), 0);
 
-    // glm::mat4 projection = glm::ortho(
-    //     0.0f, 2.f,
-    //     0.0f, 2.f
-    // );
-
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     glTexImage3D(
         GL_TEXTURE_2D_ARRAY, 0, GL_RGBA,
@@ -166,37 +176,62 @@ void Renderer::init() {
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 }
 
-void Renderer::updateBuffer() {
-    glBindVertexArray(_vao);
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    if (!_needUpdateStatic) {
-        glBufferSubData(
-            GL_ARRAY_BUFFER, sizeof(Rectangle) * (_staticDrawingIndices + _offsetSemistaticIndices) / 6,
-            sizeof(Rectangle) * _rectangleArray.size(), _rectangleArray.data()
-        );
-        _offsetSemistaticIndices = _semistaticDrawingIndices;
-    }
-    else {
-        glBufferSubData(
-            GL_ARRAY_BUFFER, 0, 
-            sizeof(Rectangle) * _rectangleArray.size(), _rectangleArray.data()
-        );
-        _needUpdateStatic = false;
-    }
+void Renderer::refreshStaticBuffer() {
+    glBindVertexArray(_staticVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, _staticVBO);
+    glBufferSubData(
+        GL_ARRAY_BUFFER, 0, 
+        sizeof(Rectangle) * _rectangleArray.size(), _rectangleArray.data()
+    );
     glBindVertexArray(0);
+
+    _rectangleArray.clear();
+    _staticDrawingIndices = _drawingIndices;
+    _drawingIndices = 0;
+}
+
+void Renderer::refreshDynamicBuffer() {
+    glBindVertexArray(_dynamicVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, _dynamicVBO);
+    glBufferSubData(
+        GL_ARRAY_BUFFER, 0,
+        sizeof(Rectangle) * _rectangleArray.size(), _rectangleArray.data()
+    );
+    glBindVertexArray(0);
+
+    _rectangleArray.clear();
+    _dynamicDrawingIndices = _drawingIndices;
+    _drawingIndices = 0;
+}
+
+void Renderer::refreshStreamBuffer() {
+    glBindVertexArray(_streamVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, _streamVBO);
+    glBufferData(
+        GL_ARRAY_BUFFER, sizeof(Rectangle) * _drawingIndices, 
+        nullptr, GL_STREAM_DRAW
+    );
+    glBufferSubData(
+        GL_ARRAY_BUFFER, 0, 
+        sizeof(Rectangle) * _rectangleArray.size(), _rectangleArray.data()
+    );
+    glBindVertexArray(0);
+
+    _rectangleArray.clear();
+    _streamDrawingIndices = _drawingIndices;
+    _drawingIndices = 0;
 }
 
 Renderer::Renderer()
     : _shaderProgram(0), 
       _zenMode(DrawConfig::zenMode),
-      _needUpdateStatic(false),
-      _needUpdateSemiStatic(false),
-      _staticMode(false),
-      _vao(0), _vbo(0), _ebo(0), 
-      _drawingIndices(0),
+      _needRefreshStaticBuffer(false),
+      _staticVAO(0), _staticVBO(0),
+      _dynamicVAO(0), _dynamicVBO(0),
+      _streamVAO(0), _streamVBO(0),
       _staticDrawingIndices(0),
-      _semistaticDrawingIndices(0),
-      _offsetSemistaticIndices(0),
+      _dynamicDrawingIndices(0),
+      _streamDrawingIndices(0),
       _origin(0.f, 0.f),
       _contentScale(DrawConfig::contentScale)
        {
@@ -211,8 +246,15 @@ Renderer::Renderer()
 }
 
 Renderer::~Renderer() {
-    if (_vao) glDeleteVertexArrays(1, &_vao);
-    if (_vbo) glDeleteVertexArrays(1, &_vbo);
+    if (_staticVAO) glDeleteVertexArrays(1, &_staticVAO);
+    if (_staticVBO) glDeleteVertexArrays(1, &_staticVBO);
+
+    if (_dynamicVAO) glDeleteVertexArrays(1, &_dynamicVAO);
+    if (_dynamicVBO) glDeleteVertexArrays(1, &_dynamicVBO);
+
+    if (_streamVAO) glDeleteVertexArrays(1, &_streamVAO);
+    if (_streamVBO) glDeleteVertexArrays(1, &_streamVBO);
+    
     if (_ebo) glDeleteBuffers(1, &_ebo);
     if (_shaderProgram) glDeleteProgram(_shaderProgram);
 }
@@ -221,10 +263,7 @@ void Renderer::addObject(
     vec2f size, vec2f pos, const TexType texType, 
     const vec2f texCoord, const vec4f color, const float rotateAngle
 ) {
-    if (!_staticMode)
-        _drawingIndices += 6;
-    else
-        _staticDrawingIndices += 6;
+    _drawingIndices += 6;
 
     // size *= _contentScale * 0.5f;
     // pos = (pos + size) * _contentScale;
@@ -252,18 +291,18 @@ void Renderer::addObject(
 }
 
 void Renderer::draw() {
-    updateBuffer();
     glUseProgram(_shaderProgram);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    glBindVertexArray(_vao);
-    glDrawElements(
-        GL_TRIANGLES, _drawingIndices + _staticDrawingIndices + _offsetSemistaticIndices, 
-        GL_UNSIGNED_INT, 0
-    );
+    glBindVertexArray(_staticVAO);
+    glDrawElements(GL_TRIANGLES, _staticDrawingIndices, GL_UNSIGNED_INT, 0);
 
-    _rectangleArray.clear();
-    _drawingIndices = 0;
+    glBindVertexArray(_dynamicVAO);
+    glDrawElements(GL_TRIANGLES, _dynamicDrawingIndices, GL_UNSIGNED_INT, 0);
+
+    glBindVertexArray(_streamVAO);
+    glDrawElements(GL_TRIANGLES, _streamDrawingIndices, GL_UNSIGNED_INT, 0);
+
     glBindVertexArray(0);
     glUseProgram(0);
 }
