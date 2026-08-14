@@ -316,9 +316,13 @@ bool ConfigManager::saveFile() {
             case 14: strFieldSize = "MEDIUM"; break;
             case 20: strFieldSize = "BIG"; break;
             case 28: strFieldSize = "HUGE"; break;
+            default: {
+                strFieldSize = std::to_string(GameConfig::xFieldSize);
+                strFieldSize += " " + strFieldSize;
+            }
         }
-    } else
-        strFieldSize = std::to_string(GameConfig::xFieldSize) + " " + std::to_string(GameConfig::yFieldSize);
+    } 
+    else strFieldSize = std::to_string(GameConfig::xFieldSize) + " " + std::to_string(GameConfig::yFieldSize);
 
     std::string strGameSpeed;
     if (CoreConfig::gameSpeed == 0.1f) {

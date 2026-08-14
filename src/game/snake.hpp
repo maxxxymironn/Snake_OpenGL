@@ -12,9 +12,11 @@ struct Direction {
 class Snake {
 private:
     std::vector<vec2i> m_body;
-    std::vector<vec2i>::iterator m_headIt;
-    vec2i m_prevTailCoord;
+    vec2i _head;
+    vec2i _prevTail;
     vec2i m_direction;
+
+    // bool _hasNewDir = false; // <-- render brokes when it's uncomment
 
 public:
     Snake(const int width, const int height):
@@ -22,8 +24,8 @@ public:
             { width / 2, height / 2 },
             { width / 2 - 1, height / 2 }
         }), 
-        m_headIt(m_body.begin()), 
-        m_prevTailCoord(*m_body.rbegin()),
+        _head(m_body[0]), 
+        _prevTail(m_body.back()),
         m_direction(Direction::RIGHT) {}
 
     void increase();
@@ -32,8 +34,8 @@ public:
     const std::vector<vec2i>& getBody() const { return m_body; }
 
     vec2i getDirection() const { return m_direction; }
-    vec2i getPrevTail() const { return m_prevTailCoord; }
-    vec2i getHeadPos() const { return *m_headIt; }
+    vec2i getPrevTail() const { return _prevTail; }
+    vec2i getHeadPos() const { return _head; }
     
     std::size_t getLength() const { return m_body.size(); }
 

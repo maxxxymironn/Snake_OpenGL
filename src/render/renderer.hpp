@@ -11,7 +11,6 @@ private:
     unsigned int _shaderProgram;
     bool _zenMode;
     bool _needRefreshStaticBuffer;
-    bool _needUpdateSemiStatic;
 
     unsigned int _staticVAO;
     unsigned int _staticVBO;
@@ -56,7 +55,7 @@ public:
 
     void addObject(
         vec2f size, vec2f pos, const TexType texType, 
-        const vec2f texCoord, const vec4f color, const float rotateAngle
+        const vec4f texCoord, const vec4f color, const float rotateAngle
     );
 
     void draw();

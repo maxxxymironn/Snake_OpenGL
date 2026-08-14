@@ -137,7 +137,7 @@ void Window::updateView() {
     else {
         _viewSize = {
             static_cast<int>(static_cast<float>((_fieldSize.x <= 800 ? 1200 : _fieldSize.x + 400)) * _contentScale),
-            static_cast<int>(static_cast<float>((_fieldSize.x <= 800 ? 800 : _fieldSize.y)) * _contentScale)
+            static_cast<int>(static_cast<float>((_fieldSize.y <= 800 ? 800 : _fieldSize.y)) * _contentScale)
         };
 
         if (_windowParam.x < _viewSize.x)

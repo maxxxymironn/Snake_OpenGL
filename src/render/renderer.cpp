@@ -101,7 +101,7 @@ namespace {
 }
 
 void Renderer::init() {
-    constexpr int STATIC_RECTANGLES = 20;
+    constexpr int STATIC_RECTANGLES = 1000;
     constexpr int DYNAMIC_RECTANGLES = 1600;
     constexpr int STREAM_RECTANGLES = 20;
     constexpr int MAX_RECTANGLES = STATIC_RECTANGLES + DYNAMIC_RECTANGLES + STREAM_RECTANGLES;
@@ -149,8 +149,8 @@ void Renderer::init() {
 
     glUniform1i(glGetUniformLocation(_shaderProgram, "uTexArray"), 0);
 
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
@@ -188,6 +188,7 @@ void Renderer::refreshStaticBuffer() {
     _rectangleArray.clear();
     _staticDrawingIndices = _drawingIndices;
     _drawingIndices = 0;
+    _needRefreshStaticBuffer = false;
 }
 
 void Renderer::refreshDynamicBuffer() {
@@ -261,12 +262,10 @@ Renderer::~Renderer() {
 
 void Renderer::addObject(
     vec2f size, vec2f pos, const TexType texType, 
-    const vec2f texCoord, const vec4f color, const float rotateAngle
+    const vec4f texCoord, const vec4f color, const float rotateAngle
 ) {
     _drawingIndices += 6;
-
-    // size *= _contentScale * 0.5f;
-    // pos = (pos + size) * _contentScale;
+    
     size *= _contentScale * 0.5f;
     pos *= _contentScale;
     vec2f lb = (getRotatedPoint({-size.x,-size.y }, rotateAngle) + pos + _origin) / _viewSize;
@@ -274,19 +273,12 @@ void Renderer::addObject(
     vec2f rt = (getRotatedPoint({ size.x, size.y }, rotateAngle) + pos + _origin) / _viewSize;
     vec2f lt = (getRotatedPoint({-size.x, size.y }, rotateAngle) + pos + _origin) / _viewSize;
 
-    // size *= _contentScale;
-    // pos *= _contentScale;
-    // vec2f lb = (getRotatedPoint({    0.f,    0.f }, rotateAngle) + pos + _origin) / _viewSize;
-    // vec2f rb = (getRotatedPoint({ size.x,    0.f }, rotateAngle) + pos + _origin) / _viewSize;
-    // vec2f rt = (getRotatedPoint({ size.x, size.y }, rotateAngle) + pos + _origin) / _viewSize;
-    // vec2f lt = (getRotatedPoint({    0.f, size.y }, rotateAngle) + pos + _origin) / _viewSize;
-
     int layer = static_cast<int>(texType);
     _rectangleArray.push_back({
-        { lb, {0.f, texCoord.y},        color, layer },
-        { rb, {texCoord.x, texCoord.y}, color, layer },
-        { rt, {texCoord.x, 0.f},        color, layer },
-        { lt, {0.f, 0.f},               color, layer }
+        { lb, {texCoord.x, texCoord.w}, color, layer },
+        { rb, {texCoord.z, texCoord.w}, color, layer },
+        { rt, {texCoord.z, texCoord.y}, color, layer },
+        { lt, {texCoord.x, texCoord.y}, color, layer }
     });
 }
 
