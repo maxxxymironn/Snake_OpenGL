@@ -13,6 +13,7 @@
 
 #include <glad/glad.h>
 
+#include <iostream>
 #include <cstddef>
 #include <cmath>
 
@@ -103,7 +104,7 @@ namespace {
 void Renderer::init() {
     constexpr int STATIC_RECTANGLES = 1000;
     constexpr int DYNAMIC_RECTANGLES = 1600;
-    constexpr int STREAM_RECTANGLES = 20;
+    constexpr int STREAM_RECTANGLES = 30;
     constexpr int MAX_RECTANGLES = STATIC_RECTANGLES + DYNAMIC_RECTANGLES + STREAM_RECTANGLES;
 
     // setting ebo
@@ -230,6 +231,7 @@ Renderer::Renderer()
       _staticVAO(0), _staticVBO(0),
       _dynamicVAO(0), _dynamicVBO(0),
       _streamVAO(0), _streamVBO(0),
+      _drawingIndices(0),
       _staticDrawingIndices(0),
       _dynamicDrawingIndices(0),
       _streamDrawingIndices(0),
@@ -248,13 +250,13 @@ Renderer::Renderer()
 
 Renderer::~Renderer() {
     if (_staticVAO) glDeleteVertexArrays(1, &_staticVAO);
-    if (_staticVBO) glDeleteVertexArrays(1, &_staticVBO);
+    if (_staticVBO) glDeleteBuffers(1, &_staticVBO);
 
     if (_dynamicVAO) glDeleteVertexArrays(1, &_dynamicVAO);
-    if (_dynamicVBO) glDeleteVertexArrays(1, &_dynamicVBO);
+    if (_dynamicVBO) glDeleteBuffers(1, &_dynamicVBO);
 
     if (_streamVAO) glDeleteVertexArrays(1, &_streamVAO);
-    if (_streamVBO) glDeleteVertexArrays(1, &_streamVBO);
+    if (_streamVBO) glDeleteBuffers(1, &_streamVBO);
     
     if (_ebo) glDeleteBuffers(1, &_ebo);
     if (_shaderProgram) glDeleteProgram(_shaderProgram);
@@ -289,11 +291,11 @@ void Renderer::draw() {
     glBindVertexArray(_staticVAO);
     glDrawElements(GL_TRIANGLES, _staticDrawingIndices, GL_UNSIGNED_INT, 0);
 
-    glBindVertexArray(_dynamicVAO);
-    glDrawElements(GL_TRIANGLES, _dynamicDrawingIndices, GL_UNSIGNED_INT, 0);
-
     glBindVertexArray(_streamVAO);
     glDrawElements(GL_TRIANGLES, _streamDrawingIndices, GL_UNSIGNED_INT, 0);
+
+    glBindVertexArray(_dynamicVAO);
+    glDrawElements(GL_TRIANGLES, _dynamicDrawingIndices, GL_UNSIGNED_INT, 0);
 
     glBindVertexArray(0);
     glUseProgram(0);

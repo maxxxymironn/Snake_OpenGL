@@ -1,29 +1,29 @@
 #include "snake.hpp"
 
 void Snake::increase() {
-    m_body.push_back(_prevTail);
-    _head = m_body.front();
+    _body.push_back(_prevTail);
+    _head = _body.front();
+    _prevTail = _prevPrevTail;
 }
 
 void Snake::move(const vec2i newHead) {
-    _prevTail = m_body.back();
+    _prevPrevTail = _prevTail;
+    _prevTail = _body.back();
 
-    for (std::size_t i = m_body.size() - 1; i > 0; --i)
-        m_body[i] = m_body[i - 1];
+    for (std::size_t i = _body.size() - 1; i > 0; --i)
+        _body[i] = _body[i - 1];
 
-    _head = m_body.front() = newHead;
-    
-    // _hasNewDir = false;
+    _head = _body.front() = newHead;
 }
 
 void Snake::reset(const int width, const int height) {
-    m_body.clear();
-    m_body = std::vector<vec2i>{
+    _body.clear();
+    _body = std::vector<vec2i>{
         { width / 2, height / 2 },
         { width / 2 - 1, height / 2 }
     };
 
-    _head = m_body.front();
-    _prevTail = m_body.back();
-    m_direction = Direction::RIGHT;
+    _head = _body.front();
+    _prevTail = _body.back();
+    _direction = Direction::RIGHT;
 }
