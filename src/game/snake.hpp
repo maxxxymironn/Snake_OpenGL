@@ -17,8 +17,6 @@ private:
     vec2i _prevTail;
     vec2i _prevPrevTail;
 
-    // bool _hasNewDir = false; // <-- render brokes when it's uncomment
-
 public:
     Snake(const int width, const int height):
         _direction(Direction::RIGHT),
@@ -37,6 +35,7 @@ public:
 
     vec2i getDirection() const { return _direction; }
     vec2i getPrevTail() const { return _prevTail; }
+    vec2i getPrevPrevTail() const { return _prevPrevTail; }
     vec2i getHeadPos() const { return _head; }
     
     std::size_t getLength() const { return _body.size(); }

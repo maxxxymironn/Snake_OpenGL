@@ -13,11 +13,11 @@ struct vec2 {
         : x(static_cast<T>(other.x)),
           y(static_cast<T>(other.y)) {}
 
-    bool operator==(const vec2& other) {
+    bool operator==(const vec2& other) const {
         return this->x == other.x && this->y == other.y;
     }
 
-    bool operator!=(const vec2& other) {
+    bool operator!=(const vec2& other) const {
         return !(*this == other);
     }
 
@@ -73,7 +73,7 @@ struct vec4 {
 
     vec4() = default;
     vec4(T x): x(x), y(x), z(x), w(x) {}
-    vec4(T x, T y, T z, T w): x(x), y(y), z(z), w(w) {}
+    constexpr vec4(T x, T y, T z, T w): x(x), y(y), z(z), w(w) {}
     vec4(const vec2<T>& v1, const vec2<T>& v2): x(v1.x), y(v2.y), z(v2.x), w(v2.y) {}
 
     template <typename U>

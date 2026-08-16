@@ -263,36 +263,41 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 		renderer.refreshStaticBuffer();
 	}
 
-	size = vec2f{cellSize, cellSize};
+	size = cellSize;
 	color = {0.15f, 0.4f, 0.2f, 1.f};
 
-	const float snakeMovingCoeff = clock.getSnakeMovingCoeff();
+	TexType texType{};
+
 	std::vector<vec2i> snakeBody = game.snake().getBody();
-	vec2i direction = game.snake().getDirection();
+	const vec2i head = snakeBody.front();
+	const vec2i tail = snakeBody.back();
+	const vec2i direction = game.snake().getDirection();
+	const vec2i applePos = game.apple().getPosition();
+	const size_t snakeSize = snakeBody.size();
+	const float snakeMovingCoeff = clock.getSnakeMovingCoeff();
+	const bool eatingApple = head == applePos;
+
 	vec2i prevTail = game.snake().getPrevTail();
-	vec2i head = *snakeBody.begin();
 	static vec2i lastHead(*(snakeBody.begin() + 1));
 	
 	/* ###### dynamic objects ###### */
-	// =================== Snake body
-	if (updatedStaticData || (head != lastHead && snakeMovingCoeff > 0.5f)) {
+	// snake body
+	if (snakeSize > 2 && (updatedStaticData || (head != lastHead && snakeMovingCoeff > 0.5f))) {
 		lastHead = head;
-		texCoord = {0.f, 0.f, 1.f, 0.99f };
-		for (auto it = snakeBody.rbegin() + 1; it + 1 != snakeBody.rend(); ++it) {
-			size = cellSize;
-			pos = static_cast<vec2f>(*it) * cellSize + size * 0.5f;
-			size = { cellSize, cellSize * 1.05f };
-			rotateAngle = getRotateAngle(*(it + 1), *it);
-			TexType texType = TexType::SNAKE_BODY;
 
-			vec2i prev = *(it - 1);
-			vec2i next = *(it + 1);
+		for (size_t i = snakeSize - 2; i > 0; --i) {
+			vec2i prev = snakeBody[i - 1];
+			vec2i cur = snakeBody[i];
+			vec2i next = snakeBody[i + 1];
+
+			pos = static_cast<vec2f>(cur) * cellSize + size * 0.5f;
+			rotateAngle = getRotateAngle(next, cur);
+			texType = TexType::SNAKE_BODY;
+
 			vec2i diff = next - prev;
-
-			// corner
-			if (diff.x != 0 && diff.y != 0) {
-				vec2i from = prev - *it;
-				vec2i to = next - *it;
+			if (diff.x != 0 && diff.y) {
+				vec2i from = prev - cur;
+				vec2i to = next - cur;
 
 				if (from.x < -1 || from.x > 1) 
 					from.x = from.x < -1 ? 1 : -1;
@@ -304,14 +309,13 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 				else if (to.y < -1 || to.y > 1)
 					to.y = to.y < -1 ? 1 : -1;
 
-				bool counterclockwise = (from == vec2i{ 1, 0 } && to == vec2i{ 0,-1 }) ||
-										(from == vec2i{ 0, 1 } && to == vec2i{ 1, 0 }) ||
-										(from == vec2i{-1, 0 } && to == vec2i{ 0, 1 }) ||
-										(from == vec2i{ 0,-1 } && to == vec2i{-1, 0 });
+				bool counterclockwise = (from == vec2i{ 1, 0 } && to == vec2i{ 0,-1 }) 
+									 || (from == vec2i{ 0, 1 } && to == vec2i{ 1, 0 })
+									 || (from == vec2i{-1, 0 } && to == vec2i{ 0, 1 })
+									 || (from == vec2i{ 0,-1 } && to == vec2i{-1, 0 });
 				if (counterclockwise)
 					rotateAngle = rotateAngle + 3.14159265359f / 2.f;
 
-				size = cellSize;
 				texType = TexType::SNAKE_CORNER;
 			}
 
@@ -325,52 +329,48 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 	}
 
 	/* ###### stream objects ###### */
-	size = cellSize;
-	// =================== apple
-	if (!(snakeBody[0] == game.apple().getPosition() && snakeMovingCoeff > 0.9f)) {
-		pos = static_cast<vec2f>(game.apple().getPosition()) * cellSize + size * 0.5f;
-		color = {1.f, 1.f, 1.f, 1.f};
-		rotateAngle = 0.f;
+	// apple
+	if (!(eatingApple && snakeMovingCoeff > 0.9f)) {
+		constexpr vec4f appleColor(1.f, 1.f, 1.f, 1.f);
+		constexpr float appleRotateAngle = 0.f;
+		pos = static_cast<vec2f>(applePos) * cellSize + size * 0.5f;
 		renderer.addObject(
 			size * clock.getAppleBreathingCoeff(), pos,
 			TexType::APPLE,
-			texCoord, color, rotateAngle
+			texCoord, appleColor, appleRotateAngle
 		);
 	}
 
 	bool drawHead = true;
 	bool drawTail = true;
 	static bool newDirectionTail = false;
-	static vec2i lastPrevTail;
-
-	color = {0.15f, 0.4f, 0.2f, 1.f};
 
 	if (snakeMovingCoeff <= 0.5f) { 
+		size = cellSize;
+
+		vec2i prev = snakeSize > 2 ? snakeBody[2] : prevTail;
 		vec2i cur = snakeBody[1];
 		vec2i next = head;
-		vec2i prev = snakeBody.size() > 2 ? snakeBody[2] : prevTail;
-		vec2i diff = next - prev;
 
+		vec2i diff = next - prev;
 		// turning head
 		if (diff.x != 0 && diff.y != 0) {
-			rotateAngle = getRotateAngle(cur, prev);
+			// waiting head
 			pos = static_cast<vec2f>(cur) * cellSize + size * 0.5f;
-
 			diff = cur - prev;
-			if (diff.x != 0)
-				pos.x += (diff.x == -1 || diff.x > 1) ? 2.f : -2.f;
-			else
-				pos.y += (diff.y == -1 || diff.y > 1) ? 2.f : -2.f;
-			size = { cellSize, cellSize * 0.9f };
+			if (diff.x != 0) pos.x += (diff.x == -1 || diff.x > 1) ? 4.f : -4.f;
+			else 			 pos.y += (diff.y == -1 || diff.y > 1) ? 4.f : -4.f;
+
+			rotateAngle = getRotateAngle(cur, prev);
 			renderer.addObject(
 				size, pos, TexType::SNAKE_TAIL,
-				{ 0.f, 0.f, 1.f, 0.9f }, color, rotateAngle
+				texCoord, color, rotateAngle
 			);
 
-			size = cellSize;
+			// dynamic head
 			pos = (static_cast<vec2f>(cur) + static_cast<vec2f>(direction) * 0.5f) * cellSize + size * 0.5f;
-			rotateAngle = getRotateAngle(head + direction, head);
 			texCoord = { 0.f, -0.5f + snakeMovingCoeff, 1.f, 0.5f + snakeMovingCoeff};
+			rotateAngle = getRotateAngle(next + direction, next);
 			renderer.addObject(
 				size, pos, TexType::SNAKE_TAIL,
 				texCoord, color, rotateAngle
@@ -379,118 +379,107 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 			drawHead = false;
 		}
 		// aux straight head
-		else if (snakeBody.size() > 2) {
+		else if (snakeSize > 2) {
 			rotateAngle = getRotateAngle(next, cur);
 			pos = static_cast<vec2f>(cur) * cellSize + size * 0.5f
 				- static_cast<vec2f>(direction) * cellSize * 0.25f;
-			size = { cellSize, cellSize * 0.65f };
+			size = { cellSize, cellSize * 0.5f };
 			texCoord = { 0.f, 0.f, 1.f, 0.5f };
 			renderer.addObject(
 				size, pos, TexType::SNAKE_BODY,
 				texCoord, color, rotateAngle
 			);
+			size = cellSize;
 		}
 
 		if (newDirectionTail) {
-			vec2i next = snakeBody.back();
-			vec2i cur = prevTail;
-			vec2i prev = lastPrevTail;
-			diff = cur - prev;
+			float auxSnakeMovingCoeff = snakeMovingCoeff;
 
-			size = cellSize;
-
-			float tmpSnakeMovingCoeff = snakeMovingCoeff;
-			if (head == game.apple().getPosition()) {
-				tmpSnakeMovingCoeff = 0.f;
-				next = *(snakeBody.rbegin() + 1);
-				cur = snakeBody.back();
+			if (!eatingApple) {
+				prev = game.snake().getPrevPrevTail();
+				cur = prevTail;
+				next = tail;
+			} 
+			else {
+				auxSnakeMovingCoeff = 0.f;
 				prev = prevTail;
-				diff = cur - prev;
+				cur = tail; 
+				next = *(snakeBody.rbegin() + 1);
 			}
 
-			// dynamic tail
-			pos = (static_cast<vec2f>(cur) - static_cast<vec2f>(diff) * 0.5f) * cellSize + size * 0.5f;
+			// waiting tail
+			pos = static_cast<vec2f>(cur) * cellSize + size * 0.5f;
+			diff = cur - next;
+			if (diff.x != 0) pos.x += (diff.x == -1 || diff.x > 1) ? 4.f : -4.f;
+			else 			 pos.y += (diff.y == -1 || diff.y > 1) ? 4.f : -4.f;
 
-			texCoord = {0.f, -0.5f - tmpSnakeMovingCoeff, 1.f, 0.5f - tmpSnakeMovingCoeff};
-			rotateAngle = getRotateAngle(prev, cur);
-
+			texCoord = {0.f, 0.f, 1.f, 1.f };
+			rotateAngle = getRotateAngle(cur, next);
 			renderer.addObject(
 				size, pos, TexType::SNAKE_TAIL,
 				texCoord, color, rotateAngle
 			);
 
-			// waiting tail
-			rotateAngle = getRotateAngle(cur, next);
-			diff = next - cur;
-
-			pos = static_cast<vec2f>(cur) * cellSize + size * 0.5f;
-
-			if (diff.x != 0) pos.x += (diff.x == -1 || diff.x > 1) ? -4.f : 4.f;
-			else pos.y += (diff.y == -1 || diff.y > 1) ? -4.f : 4.f;
-
-			size = { cellSize, cellSize };
+			// dynamic tail
+			pos = (static_cast<vec2f>(cur) - static_cast<vec2f>(cur - prev) * 0.5f) * cellSize + size * 0.5f;
+			texCoord = {0.f, -0.5f - auxSnakeMovingCoeff, 1.f, 0.5f - auxSnakeMovingCoeff};
+			rotateAngle = getRotateAngle(prev, cur);
 			renderer.addObject(
 				size, pos, TexType::SNAKE_TAIL,
-				{ 0.f, 0.f, 1.f, 0.9f }, color, rotateAngle
+				texCoord, color, rotateAngle
 			);
 
 			drawTail = false;
-			if (tmpSnakeMovingCoeff > 0.1f)
+			if (auxSnakeMovingCoeff > 0.1f)
 				newDirectionTail = false;
 		}
 	}
 	else {
 		size = cellSize;
-		auto rIt = snakeBody.rbegin();
-		vec2i cur = *rIt;
-		vec2i next = *(rIt + 1);
-		vec2i prev = prevTail;
-		vec2i diff = next - prev;
 
+		vec2i prev = prevTail;
+		vec2i cur = tail;
+		vec2i next = *(snakeBody.rbegin() + 1);
+
+		vec2i diff = next - prev;
 		// turning tail
 		if ((diff.x != 0 && diff.y != 0)) {
-			rotateAngle = getRotateAngle(cur, next);
-			pos = static_cast<vec2f>(cur) * cellSize + size * 0.5f;
-
-			diff = cur - next;
-			if (diff.x != 0)
-				pos.x += (diff.x == -1 || diff.x > 1) ? 2.f : -2.f;
-			else
-				pos.y += (diff.y == -1 || diff.y > 1) ? 2.f : -2.f;
-			size = { cellSize, cellSize * 0.9f };
-			renderer.addObject(
-				size, pos, TexType::SNAKE_TAIL,
-				{ 0.f, 0.f, 1.f, 0.9f }, color, rotateAngle
-			);
-
 			diff = cur - prev;
-			rotateAngle = getRotateAngle(prev, cur);
 
-			size = cellSize;
+			// dynamic tail
 			pos = (static_cast<vec2f>(cur) - static_cast<vec2f>(diff) * 0.5f) * cellSize + size * 0.5f;
 			texCoord = {0.f, 0.5f - snakeMovingCoeff, 1.f, 1.5f - snakeMovingCoeff};
-			rotateAngle = getRotateAngle(prev, cur);
-
-			if (head == game.apple().getPosition()) {
+			if (eatingApple)
 				texCoord = {0.f, -0.5f, 1.f, 0.5f };
-			}
-			
+			rotateAngle = getRotateAngle(prev, cur);
 			renderer.addObject(
 				size, pos, TexType::SNAKE_TAIL,
 				texCoord, color, rotateAngle	
 			);
+
+			// waiting tail
+			pos = static_cast<vec2f>(cur) * cellSize + size * 0.5f;
+			diff = cur - next;
+			if (diff.x != 0) pos.x += (diff.x == -1 || diff.x > 1) ? 4.f : -4.f;
+			else			 pos.y += (diff.y == -1 || diff.y > 1) ? 4.f : -4.f;
+
+			texCoord = { 0.f, 0.f, 1.f, 1.f };
+			rotateAngle = getRotateAngle(cur, next);
+			renderer.addObject(
+				size, pos, TexType::SNAKE_TAIL,
+				texCoord, color, rotateAngle
+			);
+
 			drawTail = false;
 			newDirectionTail = true;
-			lastPrevTail = prev;
-
 		}
 		// aux straight tail
-		else if (snakeBody.size() > 2) {
-			rotateAngle = getRotateAngle(cur, next);
+		else if (snakeSize > 2) {
 			pos = static_cast<vec2f>(cur) * cellSize + size * 0.5f
 				+ static_cast<vec2f>(next - cur) * cellSize * 0.25f;
 			size = { cellSize, cellSize * 0.5f };
 			texCoord = { 0.f, 0.f, 1.f, 0.5f };
+			rotateAngle = getRotateAngle(cur, next);
 			renderer.addObject(
 				size, pos, TexType::SNAKE_BODY, 
 				texCoord, color, rotateAngle
@@ -499,49 +488,41 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 	}
 
 	color = {0.15f, 0.4f, 0.2f, 1.f};
+	texCoord = {0.f, 0.f, 1.f, 1.f};
 	size = cellSize;
-	// =================== Snake head
-	vec2i prevHead = *(snakeBody.begin() + 1);
-	vec2f alpha = static_cast<vec2f>(direction) * snakeMovingCoeff;
 
+	// snake head
 	if (drawHead) {
+		vec2f alpha = static_cast<vec2f>(direction) * snakeMovingCoeff;
+
 		rotateAngle = getRotateAngle(head + direction, head);
-		pos = (static_cast<vec2f>(prevHead) + alpha) * cellSize + size * 0.5f;
-		texCoord = {0.f, 0.f, 1.f, 0.99f};
+		pos = (static_cast<vec2f>(snakeBody[1]) + alpha) * cellSize + size * 0.5f;
 		renderer.addObject(
 			size, pos, TexType::SNAKE_TAIL,
 			texCoord, color, rotateAngle
 		);
 	}
-	color = {0.15f, 0.4f, 0.2f, 1.f};
-	size = cellSize;
-	// =================== Snake tail
-	vec2i tail = *snakeBody.rbegin();
-	vec2i preTail = *(snakeBody.rbegin() + 1);
 
+	// snake tail
 	if (drawTail) {
-		rotateAngle = getRotateAngle(prevTail, tail);
+		vec2f alpha = static_cast<vec2f>(tail - prevTail) * snakeMovingCoeff;
 
+		rotateAngle = getRotateAngle(prevTail, tail);
 		size = cellSize;
-		alpha = static_cast<vec2f>(tail - prevTail) * snakeMovingCoeff;
-		if (head == game.apple().getPosition()) {
+
+		if (eatingApple) {
 			alpha = 0.f;
 			prevTail = tail;
 		}
+
 		pos = (static_cast<vec2f>(prevTail) + alpha) * cellSize + size * 0.5f;
-		texCoord = {0.f, 0.f, 1.f, 0.99f};
 		renderer.addObject(
 			size, pos, TexType::SNAKE_TAIL,
 			texCoord, color, rotateAngle
 		);
 	}
 
-	// // drawSnake(renderer, game, clock.getSnakeMovingCoeff());
-	// // if  (game.status() == GameStatus::PAUSE)
-	// // 	renderer.drawPause();
-
 	renderer.refreshStreamBuffer();
-
 	renderer.draw();
 }
 

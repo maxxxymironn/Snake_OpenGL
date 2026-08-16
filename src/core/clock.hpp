@@ -46,8 +46,10 @@ public:
 
         if (!onPause) {
             gameStepAccumulator += delta.count();
-            if (!isSnakeFreezed)
-                snakeMovingCoeff = gameStepAccumulator / stepTime;
+            if (!isSnakeFreezed) {
+                float newSnakeMovingCoeff = gameStepAccumulator / stepTime;
+                snakeMovingCoeff = newSnakeMovingCoeff < 1.f ? newSnakeMovingCoeff : 1.f;
+            }
         }
 
         delta = curTime - startTime;

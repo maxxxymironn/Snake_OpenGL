@@ -13,7 +13,6 @@
 
 #include <glad/glad.h>
 
-#include <iostream>
 #include <cstddef>
 #include <cmath>
 
