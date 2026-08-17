@@ -30,7 +30,7 @@ Game::Game()
       m_mode(GameConfig::gameMode),
       m_score(0),
       generateApple(false)
-{
+        {
     for (const vec2i bodyEl : m_snake.getBody())
         m_field.removeFreeCell(bodyEl);
 

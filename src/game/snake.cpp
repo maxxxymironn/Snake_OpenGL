@@ -23,7 +23,8 @@ void Snake::reset(const int width, const int height) {
         { width / 2 - 1, height / 2 }
     };
 
-    _head = _body.front();
-    _prevTail = _body.back();
     _direction = Direction::RIGHT;
+    _head = _body.front();
+    _prevTail = _body.back() - _direction;
+    _prevPrevTail = _prevTail - _direction;
 }

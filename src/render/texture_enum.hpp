@@ -5,5 +5,7 @@ enum class TexType {
     APPLE,
     SNAKE_BODY,
     SNAKE_TAIL,
-    SNAKE_CORNER
+    SNAKE_CORNER,
+    EYE_ORBIT,
+    EYE
 };

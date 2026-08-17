@@ -13,21 +13,30 @@ class Clock {
 
     // game speed
     float stepTime;
-    float gameStepAccumulator = 0;
+    float gameStepAccumulator;
 
-    float appleBreathingCoeff = 0;
-    float snakeMovingCoeff = 1; // 1 cause snake head should be on its place at startGame at first time
+    float appleBreathingCoeff;
+    float snakeMovingCoeff;
 
     // fps
-    float fpsAccumulator = 0;
-    unsigned int frames = 0;
-    unsigned int prevFrames = 0;
+    float fpsAccumulator;
+    unsigned int frames;
+    unsigned int prevFrames;
 
-    bool onPause = false;
-    bool isSnakeFreezed = true;
+    bool onPause;
+    bool isSnakeFreezed;
 
 public:
-    Clock(): stepTime(CoreConfig::gameSpeed) {}
+    Clock()
+        : stepTime(CoreConfig::gameSpeed),
+          gameStepAccumulator(0.f),
+          appleBreathingCoeff(0.f),
+          snakeMovingCoeff(1.f),
+          fpsAccumulator(0.f),
+          frames(0),
+          prevFrames(0),
+          onPause(false),
+          isSnakeFreezed(true) {}
     ~Clock() {
         CoreConfig::gameSpeed = stepTime;
     }

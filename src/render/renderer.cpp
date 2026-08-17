@@ -5,11 +5,15 @@
 #include "../../resources/textures/corner.hpp"
 #include "../../resources/textures/field.hpp"
 #include "../../resources/textures/tail.hpp"
+#include "../../resources/textures/eye_orbit.hpp"
+#include "../../resources/textures/eye.hpp"
+
 
 #include "../config/draw_config.hpp"
 #include "../core/rectangle.hpp"
 #include "../core/logger.hpp"
 #include "shaders.hpp"
+#include "texture_enum.hpp"
 
 #include <glad/glad.h>
 
@@ -133,13 +137,15 @@ void Renderer::init() {
 
     // setting textures
     constexpr GLsizei TEX_SIZE = 128;
-    constexpr GLsizei LAYER_COUNT = 5;
+    constexpr GLsizei LAYER_COUNT = 7;
     constexpr const unsigned char* TEX_DATA_ARRAY[LAYER_COUNT] = {
         &field[0],
         &apple[0],
         &body[0],
         &tail[0],
-        &corner[0]
+        &corner[0],
+        &eye_orbit[0],
+        &eye[0]
     };
 
     glGenTextures(1, &_textureArray);
@@ -236,7 +242,7 @@ Renderer::Renderer()
       _streamDrawingIndices(0),
       _origin(0.f, 0.f),
       _contentScale(DrawConfig::contentScale)
-       {
+        {
     GLuint vertexShader = createShader(GL_VERTEX_SHADER, shaders::vertexShaderSource);
     GLuint fragmentShader = createShader(GL_FRAGMENT_SHADER, shaders::fragmentShaderSource);
 
@@ -290,11 +296,11 @@ void Renderer::draw() {
     glBindVertexArray(_staticVAO);
     glDrawElements(GL_TRIANGLES, _staticDrawingIndices, GL_UNSIGNED_INT, 0);
 
-    glBindVertexArray(_streamVAO);
-    glDrawElements(GL_TRIANGLES, _streamDrawingIndices, GL_UNSIGNED_INT, 0);
-
     glBindVertexArray(_dynamicVAO);
     glDrawElements(GL_TRIANGLES, _dynamicDrawingIndices, GL_UNSIGNED_INT, 0);
+
+    glBindVertexArray(_streamVAO);
+    glDrawElements(GL_TRIANGLES, _streamDrawingIndices, GL_UNSIGNED_INT, 0);
 
     glBindVertexArray(0);
     glUseProgram(0);
