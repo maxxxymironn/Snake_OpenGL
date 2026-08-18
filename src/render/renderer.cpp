@@ -8,12 +8,11 @@
 #include "../../resources/textures/eye_orbit.hpp"
 #include "../../resources/textures/eye.hpp"
 
-
 #include "../config/draw_config.hpp"
 #include "../core/rectangle.hpp"
 #include "../core/logger.hpp"
-#include "shaders.hpp"
 #include "texture_enum.hpp"
+#include "shaders.hpp"
 
 #include <glad/glad.h>
 
@@ -267,25 +266,23 @@ Renderer::~Renderer() {
     if (_shaderProgram) glDeleteProgram(_shaderProgram);
 }
 
-void Renderer::addObject(
-    vec2f size, vec2f pos, const TexType texType, 
-    const vec4f texCoord, const vec4f color, const float rotateAngle
-) {
+void Renderer::addObject(const rectangleData& data) {
     _drawingIndices += 6;
     
-    size *= _contentScale * 0.5f;
-    pos *= _contentScale;
-    vec2f lb = (getRotatedPoint({-size.x,-size.y }, rotateAngle) + pos + _origin) / _viewSize;
-    vec2f rb = (getRotatedPoint({ size.x,-size.y }, rotateAngle) + pos + _origin) / _viewSize;
-    vec2f rt = (getRotatedPoint({ size.x, size.y }, rotateAngle) + pos + _origin) / _viewSize;
-    vec2f lt = (getRotatedPoint({-size.x, size.y }, rotateAngle) + pos + _origin) / _viewSize;
+    vec2f size = data.size * _contentScale * 0.5f;
+    vec2f pos = data.pos * _contentScale;
+    
+    vec2f lb = (getRotatedPoint({-size.x,-size.y }, data.rotateAngle) + pos + _origin) / _viewSize;
+    vec2f rb = (getRotatedPoint({ size.x,-size.y }, data.rotateAngle) + pos + _origin) / _viewSize;
+    vec2f rt = (getRotatedPoint({ size.x, size.y }, data.rotateAngle) + pos + _origin) / _viewSize;
+    vec2f lt = (getRotatedPoint({-size.x, size.y }, data.rotateAngle) + pos + _origin) / _viewSize;
 
-    int layer = static_cast<int>(texType);
+    int layer = static_cast<int>(data.texType);
     _rectangleArray.push_back({
-        { lb, {texCoord.x, texCoord.w}, color, layer },
-        { rb, {texCoord.z, texCoord.w}, color, layer },
-        { rt, {texCoord.z, texCoord.y}, color, layer },
-        { lt, {texCoord.x, texCoord.y}, color, layer }
+        { lb, {data.texCoord.x, data.texCoord.w}, data.color, layer },
+        { rb, {data.texCoord.z, data.texCoord.w}, data.color, layer },
+        { rt, {data.texCoord.z, data.texCoord.y}, data.color, layer },
+        { lt, {data.texCoord.x, data.texCoord.y}, data.color, layer }
     });
 }
 

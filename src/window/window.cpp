@@ -137,18 +137,18 @@ void Window::updateView() {
     else {
         _viewSize = {
             static_cast<int>(static_cast<float>((_fieldSize.x <= 800 ? 1200 : _fieldSize.x + 400)) * _contentScale),
-            static_cast<int>(static_cast<float>((_fieldSize.y <= 800 ? 800 : _fieldSize.y)) * _contentScale)
+            static_cast<int>(static_cast<float>((_fieldSize.y <= 800 ? 800 : _fieldSize.y) + 40) * _contentScale)
         };
 
         if (_windowParam.x < _viewSize.x)
             _windowParam.x = _viewSize.x;
-        if (_windowParam.y < _viewSize.y + 40)
-            _windowParam.y = _viewSize.y + 40;
+        if (_windowParam.y < _viewSize.y)
+            _windowParam.y = _viewSize.y;
     }
 
     glfwSetWindowSizeLimits(
         _handle, 
-        _viewSize.x, _zenMode ? _viewSize.y : _viewSize.y + 40, 
+        _viewSize.x, _viewSize.y, 
         GLFW_DONT_CARE, GLFW_DONT_CARE
     );
 
@@ -236,14 +236,12 @@ Window::Window()
 
 Window::~Window() {
     glfwTerminate();
-    
-    if (_fullscreen)
-        WindowConfig::fullscreen = true;
-    else
-        WindowConfig::fullscreen = false;
 
+    WindowConfig::fullscreen = _fullscreen;
     WindowConfig::windowWidth = _windowParam.x;
     WindowConfig::windowHeight = _windowParam.y;
+    DrawConfig::contentScale = _contentScale;
+    DrawConfig::zenMode = _zenMode;
 }
 
 void Window::close() const { glfwSetWindowShouldClose(_handle, GLFW_TRUE); }

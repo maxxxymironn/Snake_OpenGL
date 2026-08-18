@@ -139,8 +139,8 @@ bool ConfigManager::readFile() {
             else if (!isSuccessRead(iY, value, configVar)) {
                 continue;
             }
-            else if (iX < 800 || iY < 800) {
-                printError("\"" + configVar + "\" is too small (size must be > 800 800)");
+            else if (iX < 280 || iY < 280) {
+                printError("\"" + configVar + "\" is too small (size must be > 280 280)");
             }
             else {
                 WindowConfig::windowWidth = iX;

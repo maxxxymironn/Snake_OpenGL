@@ -1,6 +1,5 @@
 #pragma once
 
-#include "texture_enum.hpp"
 #include "../core/rectangle.hpp"
 #include "../core/vector.hpp"
 
@@ -53,10 +52,7 @@ public:
 
     void setOrigin(const vec2f origin) { _origin = origin * _contentScale - _viewSize; }
 
-    void addObject(
-        vec2f size, vec2f pos, const TexType texType, 
-        const vec4f texCoord, const vec4f color, const float rotateAngle
-    );
+    void addObject(const rectangleData& data);
 
     void draw();
 
