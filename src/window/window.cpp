@@ -220,7 +220,7 @@ Window::Window()
     glfwSetWindowContentScaleCallback(_handle, Window::contentSizeCallback);
     glfwSetErrorCallback(Window::errorCallback);
 
-    glfwSwapInterval(1);
+    glfwSwapInterval(GLFW_TRUE);
     glfwShowWindow(_handle);
 
     if (_fullscreen) {

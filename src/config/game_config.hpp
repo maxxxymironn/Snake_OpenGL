@@ -1,5 +1,6 @@
 #pragma once
 #include "../game/enums.hpp"
+#include "../core/vector.hpp"
 
 struct GameConfig {
     inline static int maxScore = 0;
@@ -17,4 +18,7 @@ struct GameConfig {
     inline static GameMode gameMode = GameMode::DEFAULT;
     inline static int xFieldSize = 20;
     inline static int yFieldSize = 20;
+
+    inline static vec4f snakeColor = { 0.15f, 0.40f, 0.20f, 1.f };
+    inline static vec4f themeColor = { 0.20f, 0.20f, 0.20f, 1.f };
 };

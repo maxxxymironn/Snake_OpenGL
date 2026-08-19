@@ -10,8 +10,10 @@ class Game {
     Snake m_snake;
     Apple m_apple;
 
+    vec4f _snakeColor;
+    vec4f _themeColor;
+
     GameStatus m_status;
-    GameStatus m_prevStatus;
     GameMode m_mode;
 
     int m_score;
@@ -25,6 +27,9 @@ public:
     
     GameStatus status() const { return m_status; }
     GameMode mode() const { return m_mode; }
+
+    vec4f getSnakeColor() const { return _snakeColor; }
+    vec4f getThemeColor() const { return _themeColor; }
 
     const Apple& apple() const { return m_apple; }
     const Field& field() const { return m_field; }

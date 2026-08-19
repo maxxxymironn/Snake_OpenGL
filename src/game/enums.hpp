@@ -6,7 +6,6 @@ enum class GameStatus {
     GAME,
     WIN,
     LOOSE,
-    PAUSE
 };
 
 enum class GameMode {
@@ -15,4 +14,15 @@ enum class GameMode {
     BOUNDLESS
 };
 
-
+enum class Color {
+    WHITE,
+    BLACK,
+    GRAY,
+    RED,
+    GREEN,
+    BLUE,
+    AQUA,
+    PURPLE,
+    PINK,
+    ORANGE
+};

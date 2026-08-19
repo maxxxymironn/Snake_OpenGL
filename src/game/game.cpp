@@ -25,8 +25,9 @@ Game::Game()
       m_snake(
         static_cast<int>(GameConfig::xFieldSize), 
         static_cast<int>(GameConfig::yFieldSize)),
+      _snakeColor(GameConfig::snakeColor),
+      _themeColor(GameConfig::themeColor),
       m_status(GameStatus::GAME_START),
-      m_prevStatus(m_status),
       m_mode(GameConfig::gameMode),
       m_score(0),
       generateApple(false)
@@ -53,10 +54,12 @@ void Game::update() {
 
     if (checkLoose(newHead)) {
         m_status = GameStatus::LOOSE;
+        m_snake.move(newHead);
         return;
     }
 
     m_snake.move(newHead);
+
     if (newHead == m_apple.getPosition()) {
         ++m_score;
         m_snake.increase();
@@ -111,17 +114,8 @@ bool Game::checkLoose(vec2i& newHead) {
 }
 
 void Game::updateStatus(GameStatus status) {
-    if (status == GameStatus::PAUSE) {
-        if (m_status != GameStatus::PAUSE) {
-            m_prevStatus = m_status;
-            m_status = status;
-        } else {
-            m_status = m_prevStatus;
-            m_prevStatus = status;
-        }
-    } else if (status == GameStatus::GAME && m_status == GameStatus::GAME_START) {
+    if (status == GameStatus::GAME && m_status == GameStatus::GAME_START)
         m_status = GameStatus::GAME;
-    }
 }
 
 void Game::saveStats() {

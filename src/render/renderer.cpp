@@ -11,7 +11,6 @@
 #include "../config/draw_config.hpp"
 #include "../core/rectangle.hpp"
 #include "../core/logger.hpp"
-#include "texture_enum.hpp"
 #include "shaders.hpp"
 
 #include <glad/glad.h>
@@ -181,6 +180,44 @@ void Renderer::init() {
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 }
 
+Renderer::Renderer()
+    : _shaderProgram(0), 
+      _zenMode(DrawConfig::zenMode),
+      _needRefreshStaticBuffer(false),
+      _staticVAO(0), _staticVBO(0),
+      _dynamicVAO(0), _dynamicVBO(0),
+      _streamVAO(0), _streamVBO(0),
+      _drawingIndices(0),
+      _staticDrawingIndices(0),
+      _dynamicDrawingIndices(0),
+      _streamDrawingIndices(0),
+      _origin(0.f, 0.f),
+      _contentScale(DrawConfig::contentScale)
+        {
+    GLuint vertexShader = createShader(GL_VERTEX_SHADER, shaders::vertexShaderSource);
+    GLuint fragmentShader = createShader(GL_FRAGMENT_SHADER, shaders::fragmentShaderSource);
+
+    if (vertexShader && fragmentShader)
+        _shaderProgram = linkProgram(vertexShader, fragmentShader);
+
+    if (_shaderProgram)
+        init();
+}
+
+Renderer::~Renderer() {
+    if (_staticVAO) glDeleteVertexArrays(1, &_staticVAO);
+    if (_staticVBO) glDeleteBuffers(1, &_staticVBO);
+
+    if (_dynamicVAO) glDeleteVertexArrays(1, &_dynamicVAO);
+    if (_dynamicVBO) glDeleteBuffers(1, &_dynamicVBO);
+
+    if (_streamVAO) glDeleteVertexArrays(1, &_streamVAO);
+    if (_streamVBO) glDeleteBuffers(1, &_streamVBO);
+    
+    if (_ebo) glDeleteBuffers(1, &_ebo);
+    if (_shaderProgram) glDeleteProgram(_shaderProgram);
+}
+
 void Renderer::refreshStaticBuffer() {
     glBindVertexArray(_staticVAO);
     glBindBuffer(GL_ARRAY_BUFFER, _staticVBO);
@@ -228,43 +265,7 @@ void Renderer::refreshStreamBuffer() {
     _drawingIndices = 0;
 }
 
-Renderer::Renderer()
-    : _shaderProgram(0), 
-      _zenMode(DrawConfig::zenMode),
-      _needRefreshStaticBuffer(false),
-      _staticVAO(0), _staticVBO(0),
-      _dynamicVAO(0), _dynamicVBO(0),
-      _streamVAO(0), _streamVBO(0),
-      _drawingIndices(0),
-      _staticDrawingIndices(0),
-      _dynamicDrawingIndices(0),
-      _streamDrawingIndices(0),
-      _origin(0.f, 0.f),
-      _contentScale(DrawConfig::contentScale)
-        {
-    GLuint vertexShader = createShader(GL_VERTEX_SHADER, shaders::vertexShaderSource);
-    GLuint fragmentShader = createShader(GL_FRAGMENT_SHADER, shaders::fragmentShaderSource);
-
-    if (vertexShader && fragmentShader)
-        _shaderProgram = linkProgram(vertexShader, fragmentShader);
-
-    if (_shaderProgram)
-        init();
-}
-
-Renderer::~Renderer() {
-    if (_staticVAO) glDeleteVertexArrays(1, &_staticVAO);
-    if (_staticVBO) glDeleteBuffers(1, &_staticVBO);
-
-    if (_dynamicVAO) glDeleteVertexArrays(1, &_dynamicVAO);
-    if (_dynamicVBO) glDeleteBuffers(1, &_dynamicVBO);
-
-    if (_streamVAO) glDeleteVertexArrays(1, &_streamVAO);
-    if (_streamVBO) glDeleteBuffers(1, &_streamVBO);
-    
-    if (_ebo) glDeleteBuffers(1, &_ebo);
-    if (_shaderProgram) glDeleteProgram(_shaderProgram);
-}
+void Renderer::setClearColor(const vec4f color) { glClearColor(color.x, color.y, color.z, color.w); }
 
 void Renderer::addObject(const rectangleData& data) {
     _drawingIndices += 6;

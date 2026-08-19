@@ -91,6 +91,23 @@ struct vec4 {
         w = static_cast<T>(other.w);
         return *this;
     }
+
+    bool operator==(const vec4& other) const {
+        return this->x == other.x && this->y == other.y 
+            && this->z == other.z && this->w == other.w;
+    }
+
+    bool operator!=(const vec4& other) const {
+        return !(*this == other);
+    }
+
+    vec4& operator-=(const vec4& other) {
+        x -= other.x;
+        y -= other.y;
+        z -= other.z;
+        w -= other.w;
+        return *this;
+    }
 };
 
 // template <typename T>
@@ -128,6 +145,12 @@ inline vec2<T> operator/(vec2<T> vec, const T& n) {
     vec.x /= n;
     vec.y /= n;
     return vec;
+}
+
+template <typename T>
+inline vec4<T> operator-(vec4<T> lVec, const vec4<T>& rVec) {
+    lVec -= rVec;
+    return lVec;
 }
 
 using vec2i = vec2<int>;

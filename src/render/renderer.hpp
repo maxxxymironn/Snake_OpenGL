@@ -50,6 +50,8 @@ public:
 
     bool isZenMode() const { return _zenMode; }
 
+    void setClearColor(const vec4f color);
+
     void setOrigin(const vec2f origin) { _origin = origin * _contentScale - _viewSize; }
 
     void addObject(const rectangleData& data);

@@ -12,14 +12,19 @@
 
 #include <cstdlib>
 
-void checkPressedKeys(Window& window, Renderer& renderer, Clock& clock, Game& game, InputManager& inputManager);
+void checkPressedKeys(Window& window, Renderer& renderer, Clock& clock, InputManager& inputManager);
+
 void updateDir(Snake& snake, InputManager& inputManager);
+
 void draw(Renderer& renderer, const Game& game, const Clock& clock);
+
 float getRotateAngle(const vec2i v1, const vec2i v2);
+
 void cut(
 	vec2f& size, vec2f& pos, vec4f& texCoord, const vec2f fieldSize, 
 	const bool enter, const bool forward, const bool horizontal
 );
+
 void addThroughObjects(
 	Renderer& renderer, const rectangleData& data, const vec2i direction, 
 	const vec2f fieldSize, const bool forward
@@ -47,6 +52,11 @@ int main() {
 	window.updateFieldSize(static_cast<vec2i>(game.field().getFieldSize()));
 	renderer.setContentScale(window.getContentScale());
 	renderer.setViewSize(window.getViewSize());
+	
+	{
+		vec4f clearColor = game.getThemeColor() - vec4f{0.1f, 0.1f, 0.1f, 0.f};
+		renderer.setClearColor(clearColor);
+	}
 
 	clock.start();
 	while(!window.shouldClose()) {
@@ -57,62 +67,66 @@ int main() {
 
 		draw(renderer, game, clock);
 
-		checkPressedKeys(window, renderer, clock, game, inputManager);
+		checkPressedKeys(window, renderer, clock, inputManager);
 		
 		/* Logic part */
-		if (game.status() == GameStatus::GAME) {
-			while(clock.isUpdateTime()) {
-				updateDir(game.snake(), inputManager);
-				game.update();
-			
-				clock.updateGameStepAccumulator();
+		if (!clock.isPauseTime()) {
+			if (game.status() == GameStatus::GAME) {
+				while(clock.isUpdateTime()) {
+					updateDir(game.snake(), inputManager);
+					game.update();
+				
+					clock.updateGameStepAccumulator();
 
+					if (game.apple().isNew()) {
+						window.updateScore();
+						game.apple().setOld();
+					}
+				}
+			}
+			else if (game.status() == GameStatus::LOOSE) {
+				if (configManager.isReadyToSaveFile()) {
+					game.saveStats();
+					configManager.saveFile();
+				}
+				if (clock.getSnakeMovingCoeff() > 0.1f) {
+					clock.freezeSnake();
+				}
+				if (clock.isUpdateTime(3.f)) {
+					game.reset();
+					window.updateScore(false);
+					inputManager.turnOffBuffer();
+					clock.resetGameStepAccumulator();
+				}
+			}
+			else if (game.status() == GameStatus::WIN) {
+				if (configManager.isReadyToSaveFile()) {
+					game.saveStats();
+					configManager.saveFile();
+					clock.freezeSnake();
+				}
+				if (clock.isUpdateTime(3.f)) {
+					game.reset();
+					window.updateScore(false);
+					inputManager.turnOffBuffer();
+					clock.resetGameStepAccumulator();
+				}
+			}
+			else if (game.status() == GameStatus::GAME_START) {
 				if (game.apple().isNew()) {
 					window.updateScore();
 					game.apple().setOld();
+					// applePos = game.apple().getPosition();
 				}
-			}
-		}
-		if (game.status() == GameStatus::LOOSE) {
-			if (configManager.isReadyToSaveFile()) {
-				game.saveStats();
-				configManager.saveFile();
-				clock.freezeSnake();
-			}
-			if (clock.isUpdateTime(3.f)) {
-				game.reset();
-				window.updateScore(false);
-				inputManager.turnOffBuffer();
-				clock.resetGameStepAccumulator();
-			}
-		}
-		else if (game.status() == GameStatus::WIN) {
-			if (configManager.isReadyToSaveFile()) {
-				game.saveStats();
-				configManager.saveFile();
-				clock.freezeSnake();
-			}
-			if (clock.isUpdateTime(3.f)) {
-				game.reset();
-				window.updateScore(false);
-				inputManager.turnOffBuffer();
-				clock.resetGameStepAccumulator();
-			}
-		}
-		else if (game.status() == GameStatus::GAME_START) {
-			if (game.apple().isNew()) {
-				window.updateScore();
-				game.apple().setOld();
-				// applePos = game.apple().getPosition();
-			}
 
-			if (clock.isUpdateTime(0.5f))  {
-				configManager.setReadyToSaveFile();
-				game.updateStatus(GameStatus::GAME);
-				game.update();
-				clock.resetGameStepAccumulator();
-				inputManager.turnOnBuffer();
-				clock.unfreezeSnake();
+				if (clock.isUpdateTime(0.5f))  {
+					configManager.setReadyToSaveFile();
+					game.updateStatus(GameStatus::GAME);
+					game.update();
+					clock.resetGameStepAccumulator();
+					inputManager.turnOnBuffer();
+					clock.unfreezeSnake();
+				}
 			}
 		}
 		/* End logic */
@@ -126,13 +140,12 @@ int main() {
 	return 0;
 }
 
-void checkPressedKeys(Window& window, Renderer& renderer, Clock& clock, Game &game, InputManager& inputManager) {
+void checkPressedKeys(Window& window, Renderer& renderer, Clock& clock, InputManager& inputManager) {
 	if (inputManager.isKeyDown(Action::Exit))
 		window.close();
 
 	else if (inputManager.isKeyPressed(Action::Pause)) {
 		clock.updatePauseStatus();
-		game.updateStatus(GameStatus::PAUSE);
 		inputManager.changeWorkStatus();
 	}
 
@@ -175,6 +188,9 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 	constexpr float cellSize = 40.f;
 	const vec2f fieldSize = static_cast<vec2f>(game.field().getFieldSize()) * cellSize;
 
+	vec4f snakeColor = game.getSnakeColor();
+	vec4f themeColor = game.getThemeColor();
+
 	rectangleData data(
 		cellSize, {0.f, 0.f}, {1.f, 1.f, 1.f, 1.f}, 
 		{0.f, 0.f, 1.f, 1.f}, TexType::SNAKE_BODY, 0.f
@@ -187,7 +203,7 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 
 		// =================== field
 		data.size = cellSize * 2.f;
-		data.color = {0.2, 0.2, 0.2, 1.f};
+		data.color = themeColor;
 		data.texType = TexType::FIELD;
 
 		constexpr vec2f minViewSize{1200.f, 800.f};
@@ -215,7 +231,7 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 		}
 
 		if (!evenXCellsCount || !evenYCellsCount) {
-			data.color = vec4f{0.1f, 0.1f, 0.1f, 1.f};
+			data.color = {themeColor.x - 0.1f, themeColor.y - 0.1f, themeColor.z - 0.1f, themeColor.w};
 			data.texCoord = { 0.1f, 0.1f };
 
 			vec2f hiddenLinePos = fieldStartPos + fieldSize + vec2f(cellSize) * 0.5f;
@@ -232,13 +248,13 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 		}
 		
 		if (!renderer.isZenMode()) {
+			data.color = {themeColor.x - 0.05f, themeColor.y - 0.05f, themeColor.z - 0.05f, themeColor.w};
 			data.size = { 200.f, 800.f };
-			data.color = {0.15f, 0.15f, 0.15f, 1.f};
 			data.texType = TexType::SNAKE_BODY;
 			data.texCoord = { 0.f, 0.f, 1.f, 1.f };
 
 			// =================== left panel
-			data.pos = vec2f{
+			vec2f panelPos = data.pos = vec2f{
 				0.f, 
 				(fieldSize.y < minViewSize.y ? 0.f : (fieldSize.y - data.size.y) * 0.5f) + 20.f
 			} + data.size * 0.5f;
@@ -247,9 +263,13 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 			// ~~~~~~~~~~~~~~~~~~~ icons on the left panel
 
 			// =================== right panel
+			data.color = {themeColor.x - 0.05f, themeColor.y - 0.05f, themeColor.z - 0.05f, themeColor.w};
+			data.size = { 200.f, 800.f };
+			data.texType = TexType::SNAKE_BODY;
 			constexpr float minRightPanelX = 1000.f;
 			float rightPanelX = fieldStartPos.x + fieldSize.x;
 			
+			data.pos = panelPos;
 			data.pos.x = (rightPanelX < minRightPanelX ? minRightPanelX : rightPanelX) + data.size.x * 0.5f;
 			renderer.addObject(data);
 
@@ -262,15 +282,15 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 	}
 
 	data.size = cellSize;
-	data.color = {0.15f, 0.4f, 0.2f, 1.f};
+	data.color = snakeColor;
 	data.texCoord = { 0.f, 0.f, 1.f, 1.f };
 
+	const vec2i direction = game.snake().getDirection();
 	std::vector<vec2i> snakeBody = game.snake().getBody();
+	const size_t snakeSize = snakeBody.size();
 	const vec2i head = snakeBody.front();
 	const vec2i tail = snakeBody.back();
-	const vec2i direction = game.snake().getDirection();
 	const vec2i applePos = game.apple().getPosition();
-	const size_t snakeSize = snakeBody.size();
 	const float snakeMovingCoeff = clock.getSnakeMovingCoeff();
 	const bool eatingApple = head == applePos;
 
@@ -343,7 +363,7 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 	bool drawHead = true;
 	bool drawTail = true;
 
-	data.color = {0.15f, 0.4f, 0.2f, 1.f};
+	data.color = snakeColor;
 	if (snakeMovingCoeff <= 0.5f) { 
 		data.size = cellSize;
 
@@ -537,7 +557,6 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 	const vec2f alpha = static_cast<vec2f>(direction) * snakeMovingCoeff;
 	const vec2f eyePos = (static_cast<vec2f>(snakeBody[1]) + alpha) * cellSize + data.size * 0.5f;
 
-	// eye places
 	vec2f eye1Pos = eyePos;
 	vec2f eye2Pos = eyePos;
 
@@ -552,13 +571,14 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 		eye2Pos.y -= -coeff * (-cellSize + eyePlaceSize.y - 6.f);
 	}
 
-	data.color = {0.15f, 0.37f, 0.2f, 1.f};
+	data.color = { snakeColor.x - 0.03f, snakeColor.y - 0.03f, snakeColor.z - 0.03f, snakeColor.w };
 	data.texCoord = {0.f, 0.f, 1.f, 1.f};
 	data.rotateAngle = getRotateAngle(head + direction, head);
 	data.texType = TexType::EYE_ORBIT;
 	data.pos = eye1Pos;
 	data.size = eyePlaceSize;
 
+	// eye places
 	if (!headThroughBorder)
 		renderer.addObject(data);		
 	else
@@ -570,8 +590,8 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 	else
 		addThroughObjects(renderer, data, direction, fieldSize, true);
 
-	// eye
-	if (!(headThroughBorder && snakeMovingCoeff > 0.6f)) {
+	// eyes
+	if (!(headThroughBorder && snakeMovingCoeff > 0.6f) && !clock.isBlinkTime()) {
 		vec2f diff = eyePos - (static_cast<vec2f>(applePos) * cellSize + data.size * 0.5f);
 		diff.y = -diff.y;
 
