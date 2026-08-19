@@ -73,11 +73,6 @@ set(GLFW_BUILD_EXAMPLES OFF)
 # just include its CMakeLists.txt
 add_subdirectory(external/glfw SYSTEM)
 
-# GLM (headers only)
-target_include_directories(snake SYSTEM PRIVATE 
-    external/glm
-)
-
 # ===========================
 # Link libraries to exe
 # ===========================

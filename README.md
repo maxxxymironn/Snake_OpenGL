@@ -1,7 +1,10 @@
 # Snake (OpenGL)
-### - [How to build project?](#how-to-build-project)
+### - [How to build project?](#how-to-build-project)  
+### - [Hotkeys](#hotkeys)  
+### - [Config](#config)
 
-![Demo](assets/snake_preview.gif)<br>
+
+<!-- ![Demo](assets/snake_preview.gif)<br> -->
 ![Demo](assets/image.png)<br>
 
 ## How to build project
@@ -21,3 +24,17 @@ Repo contains `CMakePresets.json` and, if you have generators and compilers list
 cmake --preset <preset_name>
 cmake --build --preset <preset_name>
 ```
+
+You can have some issues with building project because of because idk how to write correct CMakeLists.txt.
+
+## Hotkeys
+`wasd` or `key_up key_down key_left key_right` - move snake  
+`p` - freeze/unfreeze game  
+`ctrl + =` - scale up  
+`ctrl + -` - scale down  
+`ctrl + z` - zen mode  
+
+## Config
+You can change field size, snake color, and more in config file. Program creates directory and config file if you start the program for the first time in the path:  
+- `AppData/Snake_OpenGL/config` for Windows;
+- `home/.local/share/Snake_OpenGL/config` for Linux.
