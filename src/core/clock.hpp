@@ -104,7 +104,7 @@ public:
     bool isPauseTime() const { return _onPause; }
 
     void updateGameStepAccumulator() { _gameStepAccumulator -= _stepTime; }
-    void resetGameStepAccumulator() { _gameStepAccumulator = 0.f; }
+    void resetGameStepAccumulator() { _gameStepAccumulator = 0.f; _snakeMovingCoeff = 1.f; }
 
     void updatePauseStatus() { _onPause = !_onPause; }
     void freezeSnake() { _isSnakeFreezed = true; }

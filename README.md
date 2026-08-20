@@ -25,7 +25,7 @@ cmake --preset <preset_name>
 cmake --build --preset <preset_name>
 ```
 
-You can have some issues with building project because of because idk how to write correct CMakeLists.txt.
+You can have some issues with building project because of idk how to write correct CMakeLists.txt.
 
 ## Hotkeys
 `wasd` or `key_up key_down key_left key_right` - move snake  

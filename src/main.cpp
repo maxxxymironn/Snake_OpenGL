@@ -116,7 +116,6 @@ int main() {
 				if (game.apple().isNew()) {
 					window.updateScore();
 					game.apple().setOld();
-					// applePos = game.apple().getPosition();
 				}
 
 				if (clock.isUpdateTime(0.5f))  {
@@ -304,7 +303,7 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 
 	/* ###### dynamic objects ###### */
 	// snake body
-	if (updatedStaticData || (head != lastHead && snakeMovingCoeff > 0.5f)) {
+	if (updatedStaticData || (head != lastHead && (snakeMovingCoeff > 0.5f || game.status() == GameStatus::GAME_START))) {
 		lastHead = head;
 
 		for (size_t i = snakeSize - 2; i > 0; --i) {
