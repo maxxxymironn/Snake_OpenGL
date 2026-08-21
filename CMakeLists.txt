@@ -9,12 +9,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # for clangd extension
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(DEBUG_MODE ON)
-
-if(DEBUG_MODE)
-    set(CMAKE_BUILD_TYPE Debug)
-endif()
-
 # ===========================
 # executable
 # ===========================
@@ -26,13 +20,6 @@ if(MSVC)
     target_compile_options(snake PRIVATE /W4)
 else()
     target_compile_options(snake PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-# Set window or console mode
-if(NOT DEBUG_MODE AND (MSVC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
-    target_link_options(snake PRIVATE
-        -Xlinker /ENTRY:mainCRTStartup
-    )
 endif()
 
 target_sources(snake PRIVATE

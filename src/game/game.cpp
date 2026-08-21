@@ -27,7 +27,7 @@ Game::Game()
         static_cast<int>(GameConfig::yFieldSize)),
       _snakeColor(GameConfig::snakeColor),
       _themeColor(GameConfig::themeColor),
-      m_status(GameStatus::GAME_START),
+      m_status(GameStatus::MENU),
       m_mode(GameConfig::gameMode),
       m_score(0),
       generateApple(false)
@@ -114,8 +114,10 @@ bool Game::checkLoose(vec2i& newHead) {
 }
 
 void Game::updateStatus(GameStatus status) {
-    if (status == GameStatus::GAME && m_status == GameStatus::GAME_START)
+    if (status == GameStatus::GAME)
         m_status = GameStatus::GAME;
+    else if (status == GameStatus::MENU)
+        m_status = GameStatus::MENU;
 }
 
 void Game::saveStats() {

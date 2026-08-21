@@ -15,7 +15,7 @@ struct GameConfig {
     inline static int deaths = 0;
     inline static int timeAtGame = 0;     // TODO: change variable type on std::chrono::duration?
     
-    inline static GameMode gameMode = GameMode::DEFAULT;
+    inline static GameMode gameMode = GameMode::THROUGH_WALLS;
     inline static int xFieldSize = 20;
     inline static int yFieldSize = 20;
 

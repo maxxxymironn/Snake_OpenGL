@@ -9,7 +9,6 @@
 #include <GLFW/glfw3.h>
 
 #include <string>
-#include <iostream>
 
 inline static Action keyMap[GLFW_KEY_LAST + 1];
 
@@ -20,6 +19,7 @@ namespace {
         
         keyMap[GLFW_KEY_ESCAPE] = Action::Exit;
         keyMap[GLFW_KEY_P] = Action::Pause;
+        keyMap[GLFW_KEY_SPACE] = Action::Space;
 
         keyMap[GLFW_KEY_W]  = Action::MoveUp;
         keyMap[GLFW_KEY_UP] = Action::MoveUp;
@@ -77,6 +77,24 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
     }
 }
 
+void Window::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
+    Window* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    if (self && button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+        double x, y;
+        glfwGetCursorPos(window, &x, &y);
+        vec2f cursorPos = vec2f{ static_cast<float>(x), static_cast<float>(y) };
+        
+        float left = self->_windowParam.x * 0.5f - 150.f * self->_contentScale;
+        float top = self->_windowParam.y * 0.5f - 150.f * self->_contentScale;
+        vec4f triggerZone = vec4f{ left, top, left + 300.f * self->_contentScale, top + 300.f * self->_contentScale};
+
+        bool inTriggerZone = cursorPos.x <= triggerZone.z && cursorPos.x >= triggerZone.x
+                          && cursorPos.y <= triggerZone.w && cursorPos.y >= triggerZone.y;
+        if (inTriggerZone)
+            self->_buttonClicked = true;
+    }
+}
+
 void Window::sizeCallback(GLFWwindow* window, int width, int height) {
     Window* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
     const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
@@ -118,7 +136,7 @@ void Window::errorCallback(const int error_code, const char *description) {
 }
 
 void Window::setTitle() {
-    std::string title = "Snake | Score: " + std::to_string(_scoreTitle) + " | FPS: " + std::to_string(_fpsTitle);
+    std::string title = "Score: " + std::to_string(_scoreTitle) + " | FPS: " + std::to_string(_fpsTitle);
     glfwSetWindowTitle(_handle, title.c_str());
 }
 
@@ -167,7 +185,9 @@ Window::Window()
       _fpsTitle(0),
       _fullscreen(WindowConfig::fullscreen),
       _zenMode(DrawConfig::zenMode),
-      _updateTitle(false)
+      _updateTitle(false),
+      _showDetailedTitle(false),
+      _buttonClicked(false)
     {
     if (!glfwInit()) {
         Logger::getInstance().printError("Window", "GLFW initialization failed");
@@ -185,7 +205,7 @@ Window::Window()
 
     _handle = glfwCreateWindow(
         _windowParam.x, _windowParam.y,
-        "Snake | Score: 0 | FPS: ",
+        "Snake",
         nullptr, nullptr
     );
     if (!_handle) {
@@ -217,6 +237,7 @@ Window::Window()
     glfwSetFramebufferSizeCallback(_handle, Window::framebufferSizeCallback);
     glfwSetWindowRefreshCallback(_handle, Window::refreshCallback);
     glfwSetKeyCallback(_handle, Window::keyCallback);
+    glfwSetMouseButtonCallback(_handle, Window::mouseButtonCallback);
     glfwSetWindowContentScaleCallback(_handle, Window::contentSizeCallback);
     glfwSetErrorCallback(Window::errorCallback);
 
@@ -249,7 +270,7 @@ bool Window::shouldClose() { return static_cast<bool>(glfwWindowShouldClose(_han
 
 void Window::pollEvents() {
     glfwPollEvents();
-    if (_updateTitle) {
+    if (_updateTitle && _showDetailedTitle) {
         setTitle();
         _updateTitle = false;
     }
@@ -260,4 +281,10 @@ void Window::swapBuffers() { glfwSwapBuffers(_handle); }
 void Window::updateScore(const bool toIncrement) {
     _scoreTitle = toIncrement ? _scoreTitle + 1 : -1;
     _updateTitle = true;
+}
+
+void Window::showDetailedTitle(const bool show) {
+    _showDetailedTitle = show;
+    if (!show)
+        glfwSetWindowTitle(_handle, "Snake");
 }

@@ -22,11 +22,14 @@ class Window {
     bool _fullscreen;
     bool _zenMode;
     bool _updateTitle;
+    bool _showDetailedTitle;
+    bool _buttonClicked;
 
     std::function<void(Action key, bool isPressed, Mod mods)> inputManagerSetKey;
     std::function<void()> refreshScreen;
 
     static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+    static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
     static void sizeCallback(GLFWwindow* window, int width, int height);
     static void framebufferSizeCallback(GLFWwindow* window, int width, int height);
     static void contentSizeCallback(GLFWwindow* window, float xScale, float yScale);
@@ -47,8 +50,18 @@ public:
     float getContentScale() const { return _contentScale; }
 
     void updateFieldSize(const vec2i fieldCellSize) { _fieldSize = fieldCellSize * 40; updateView(); }
-    void increaseContentScaling() { _contentScale += 0.1f; updateView(); }
-    void decreaseContentScaling() { _contentScale -= 0.1f; updateView(); }
+    void increaseContentScaling() {
+        if (_contentScale < 2.f) {
+            _contentScale += 0.1f;
+            updateView();
+        }
+    }
+    void decreaseContentScaling() { 
+        if (_contentScale > 0.5f) {
+            _contentScale -= 0.1f; 
+            updateView(); 
+        }
+    }
     void changeZenStatus() { _zenMode = !_zenMode; updateView(); }
 
     void close() const;
@@ -60,4 +73,11 @@ public:
 
     void updateFPS(const int fps) { _fpsTitle = fps; _updateTitle = true; }
     void updateScore(const bool toIncrement=true);
+    void showDetailedTitle(const bool show);
+
+    bool isButtonClicked() { 
+        bool answer = _buttonClicked; 
+        _buttonClicked = false; 
+        return answer; 
+    }
 };

@@ -12,7 +12,7 @@
 
 #include <cstdlib>
 
-void checkPressedKeys(Window& window, Renderer& renderer, Clock& clock, InputManager& inputManager);
+void checkPressedKeys(Window& window, Renderer& renderer, Game& game, Clock& clock, InputManager& inputManager);
 
 void updateDir(Snake& snake, InputManager& inputManager);
 
@@ -67,7 +67,7 @@ int main() {
 
 		draw(renderer, game, clock);
 
-		checkPressedKeys(window, renderer, clock, inputManager);
+		checkPressedKeys(window, renderer, game, clock, inputManager);
 		
 		/* Logic part */
 		if (!clock.isPauseTime()) {
@@ -139,13 +139,16 @@ int main() {
 	return 0;
 }
 
-void checkPressedKeys(Window& window, Renderer& renderer, Clock& clock, InputManager& inputManager) {
-	if (inputManager.isKeyDown(Action::Exit))
-		window.close();
-
-	else if (inputManager.isKeyPressed(Action::Pause)) {
-		clock.updatePauseStatus();
-		inputManager.changeWorkStatus();
+void checkPressedKeys(Window& window, Renderer& renderer, Game& game, Clock& clock, InputManager& inputManager) {
+	if (inputManager.isKeyPressed(Action::Exit)) {
+		if (game.status() == GameStatus::MENU)
+			window.close();
+		else {
+			window.showDetailedTitle(false);
+			game.updateStatus(GameStatus::MENU);
+			if (clock.isPauseTime())
+				clock.updatePauseStatus();
+		}
 	}
 
 	else if (inputManager.isKeyPressed(Action::ScaleUp)) {
@@ -164,6 +167,25 @@ void checkPressedKeys(Window& window, Renderer& renderer, Clock& clock, InputMan
 		window.changeZenStatus();
 		renderer.changeZenMode();
 		renderer.setViewSize(window.getViewSize());
+	}
+
+	else if (game.status() == GameStatus::MENU) {
+		if (inputManager.isKeyPressed(Action::Space) || window.isButtonClicked()) {
+			game.updateStatus(GameStatus::GAME_START);
+			game.reset();
+			window.showDetailedTitle(true);
+			window.updateScore(false);
+			inputManager.turnOffBuffer();
+			clock.resetGameStepAccumulator();
+			clock.freezeSnake();
+		}
+	}
+
+	else if (game.status() != GameStatus::MENU) {
+		if (inputManager.isKeyPressed(Action::Pause)) {
+			clock.updatePauseStatus();
+			inputManager.changeWorkStatus();
+		}
 	}
 }
 
@@ -187,25 +209,27 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 	constexpr float cellSize = 40.f;
 	const vec2f fieldSize = static_cast<vec2f>(game.field().getFieldSize()) * cellSize;
 
-	vec4f snakeColor = game.getSnakeColor();
-	vec4f themeColor = game.getThemeColor();
+	const vec4f snakeColor = game.getSnakeColor();
+	const vec4f themeColor = game.getThemeColor();
 
 	rectangleData data(
 		cellSize, {0.f, 0.f}, {1.f, 1.f, 1.f, 1.f}, 
 		{0.f, 0.f, 1.f, 1.f}, TexType::SNAKE_BODY, 0.f
 	);
 
+	static bool isMenuStatus = true;
+	GameStatus gameStatus = game.status();
+
 	bool updatedStaticData = false;
 	/* ###### static objects ###### */
-	if (renderer.needRefreshStaticBuffer()) {
+	if (renderer.needRefreshStaticBuffer()
+		|| (!isMenuStatus && gameStatus == GameStatus::MENU)
+		|| (isMenuStatus && gameStatus != GameStatus::MENU)
+	) {
 		renderer.setOrigin(vec2f{ 0.f, 0.f });
 
-		// =================== field
-		data.size = cellSize * 2.f;
-		data.color = themeColor;
-		data.texType = TexType::FIELD;
-
 		constexpr vec2f minViewSize{1200.f, 800.f};
+		constexpr vec2f fieldTexSize{80.f, 80.f};
 		vec2i rawFieldSize(game.field().getFieldSize());
 
 		vec2f startPos(0.f, 0.f);
@@ -213,39 +237,10 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 			startPos.x = fieldSize.x < minViewSize.x - 400.f ? (minViewSize.x - fieldSize.x) * 0.5f : 200.f;
 			startPos.y = fieldSize.y < minViewSize.y ? (minViewSize.y - fieldSize.y) * 0.5f : 20.f;
 		}
-		startPos += data.size * 0.5f;
-		const vec2f fieldStartPos = startPos - data.size * 0.5f;
-
-		bool evenXCellsCount = rawFieldSize.x % 2 == 0;
-		bool evenYCellsCount = rawFieldSize.y % 2 == 0;
-		vec2i fieldCellsCount(
-			(rawFieldSize.x + (evenXCellsCount ? 0 : 1)) / 2,
-			(rawFieldSize.y + (evenYCellsCount ? 0 : 1)) / 2
-		);
-		for (int x = 0; x < fieldCellsCount.x; ++x) {
-			for (int y = 0; y < fieldCellsCount.y; ++y) {
-				data.pos = startPos + vec2f{ data.size.x * x, data.size.y * y }; 
-				renderer.addObject(data);
-			}
-		}
-
-		if (!evenXCellsCount || !evenYCellsCount) {
-			data.color = {themeColor.x - 0.1f, themeColor.y - 0.1f, themeColor.z - 0.1f, themeColor.w};
-			data.texCoord = { 0.1f, 0.1f };
-
-			vec2f hiddenLinePos = fieldStartPos + fieldSize + vec2f(cellSize) * 0.5f;
-
-			// ~~~~~~~~~~~~~~~~~~~ right hidden line
-			data.size = { cellSize, fieldSize.y + cellSize };
-			data.pos = { hiddenLinePos.x, hiddenLinePos.y - fieldSize.y * 0.5f };
-			renderer.addObject(data);
-
-			// ~~~~~~~~~~~~~~~~~~~ left hidden line
-			data.size = { fieldSize.x + cellSize, cellSize };
-			data.pos = { hiddenLinePos.x - fieldSize.x * 0.5f, hiddenLinePos.y };
-			renderer.addObject(data);
-		}
+		startPos += fieldTexSize * 0.5f;
+		const vec2f fieldStartPos = startPos - fieldTexSize * 0.5f;
 		
+		// =================== panels
 		if (!renderer.isZenMode()) {
 			data.color = {themeColor.x - 0.05f, themeColor.y - 0.05f, themeColor.z - 0.05f, themeColor.w};
 			data.size = { 200.f, 800.f };
@@ -275,6 +270,45 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 			// ~~~~~~~~~~~~~~~~~~~ icons on the right panel
 		}
 
+		// =================== field
+		if (gameStatus != GameStatus::MENU) {
+			isMenuStatus = false;
+
+			data.size = cellSize * 2.f;
+			data.color = themeColor;
+			data.texType = TexType::FIELD;
+
+			bool evenXCellsCount = rawFieldSize.x % 2 == 0;
+			bool evenYCellsCount = rawFieldSize.y % 2 == 0;
+			vec2i fieldCellsCount(
+				(rawFieldSize.x + (evenXCellsCount ? 0 : 1)) / 2,
+				(rawFieldSize.y + (evenYCellsCount ? 0 : 1)) / 2
+			);
+			for (int x = 0; x < fieldCellsCount.x; ++x) {
+				for (int y = 0; y < fieldCellsCount.y; ++y) {
+					data.pos = startPos + vec2f{ data.size.x * x, data.size.y * y }; 
+					renderer.addObject(data);
+				}
+			}
+
+			if (!evenXCellsCount || !evenYCellsCount) {
+				data.color = {themeColor.x - 0.1f, themeColor.y - 0.1f, themeColor.z - 0.1f, themeColor.w};
+				data.texCoord = { 0.1f, 0.1f };
+
+				vec2f hiddenLinePos = fieldStartPos + fieldSize + vec2f(cellSize) * 0.5f;
+
+				// ~~~~~~~~~~~~~~~~~~~ right hidden line
+				data.size = { cellSize, fieldSize.y + cellSize };
+				data.pos = { hiddenLinePos.x, hiddenLinePos.y - fieldSize.y * 0.5f };
+				renderer.addObject(data);
+
+				// ~~~~~~~~~~~~~~~~~~~ left hidden line
+				data.size = { fieldSize.x + cellSize, cellSize };
+				data.pos = { hiddenLinePos.x - fieldSize.x * 0.5f, hiddenLinePos.y };
+				renderer.addObject(data);
+			}
+		}
+
 		updatedStaticData = true;
 		renderer.setOrigin(fieldStartPos);
 		renderer.refreshStaticBuffer();
@@ -284,390 +318,351 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 	data.color = snakeColor;
 	data.texCoord = { 0.f, 0.f, 1.f, 1.f };
 
-	const vec2i direction = game.snake().getDirection();
-	std::vector<vec2i> snakeBody = game.snake().getBody();
-	const size_t snakeSize = snakeBody.size();
-	const vec2i head = snakeBody.front();
-	const vec2i tail = snakeBody.back();
-	const vec2i applePos = game.apple().getPosition();
-	const float snakeMovingCoeff = clock.getSnakeMovingCoeff();
-	const bool eatingApple = head == applePos;
+	if (gameStatus != GameStatus::MENU) {
+		const vec2i direction = game.snake().getDirection();
+		std::vector<vec2i> snakeBody = game.snake().getBody();
+		const size_t snakeSize = snakeBody.size();
+		const vec2i head = snakeBody.front();
+		const vec2i tail = snakeBody.back();
+		const vec2i applePos = game.apple().getPosition();
+		const float snakeMovingCoeff = clock.getSnakeMovingCoeff();
+		const bool eatingApple = head == applePos;
 
-	vec2i prevTail = game.snake().getPrevTail();
-	static vec2i lastHead(*(snakeBody.begin() + 1));
+		vec2i prevTail = game.snake().getPrevTail();
+		static vec2i lastHead(*(snakeBody.begin() + 1));
+		static bool straightView = false;
 
-	const bool headThroughBorder = std::abs(head.x - snakeBody[1].x) > 1 
-								|| std::abs(head.y - snakeBody[1].y) > 1;
-	const bool tailThroughBorder = std::abs(tail.x - prevTail.x) > 1 
-								|| std::abs(tail.y - prevTail.y) > 1;
+		const bool headThroughBorder = std::abs(head.x - snakeBody[1].x) > 1 
+									|| std::abs(head.y - snakeBody[1].y) > 1;
+		const bool tailThroughBorder = std::abs(tail.x - prevTail.x) > 1 
+									|| std::abs(tail.y - prevTail.y) > 1;
 
-	/* ###### dynamic objects ###### */
-	// snake body
-	if (updatedStaticData || (head != lastHead && (snakeMovingCoeff > 0.5f || game.status() == GameStatus::GAME_START))) {
-		lastHead = head;
+		/* ###### dynamic objects ###### */
+		// snake body
+		if (updatedStaticData || (head != lastHead && (snakeMovingCoeff > 0.5f || game.status() == GameStatus::GAME_START))) {
+			lastHead = head;
+			straightView = false;
 
-		for (size_t i = snakeSize - 2; i > 0; --i) {
-			vec2i prev = snakeBody[i - 1];
-			vec2i cur = snakeBody[i];
-			vec2i next = snakeBody[i + 1];
+			for (size_t i = snakeSize - 2; i > 0; --i) {
+				vec2i prev = snakeBody[i - 1];
+				vec2i cur = snakeBody[i];
+				vec2i next = snakeBody[i + 1];
 
-			data.pos = static_cast<vec2f>(cur) * cellSize + data.size * 0.5f;
-			data.rotateAngle = getRotateAngle(next, cur);
-			data.texType = TexType::SNAKE_BODY;
+				data.pos = static_cast<vec2f>(cur) * cellSize + data.size * 0.5f;
+				data.rotateAngle = getRotateAngle(next, cur);
+				data.texType = TexType::SNAKE_BODY;
+
+				vec2i diff = next - prev;
+				if (diff.x != 0 && diff.y) {
+					vec2i from = prev - cur;
+					vec2i to = next - cur;
+
+					if (from.x < -1 || from.x > 1) 
+						from.x = from.x < -1 ? 1 : -1;
+					else if (from.y < -1 || from.y > 1)
+						from.y = from.y < -1 ? 1 : -1;
+
+					if (to.x < -1 || to.x > 1)
+						to.x = to.x < -1 ? 1 : -1;
+					else if (to.y < -1 || to.y > 1)
+						to.y = to.y < -1 ? 1 : -1;
+
+					bool counterclockwise = (from == vec2i{ 1, 0 } && to == vec2i{ 0,-1 }) 
+										|| (from == vec2i{ 0, 1 } && to == vec2i{ 1, 0 })
+										|| (from == vec2i{-1, 0 } && to == vec2i{ 0, 1 })
+										|| (from == vec2i{ 0,-1 } && to == vec2i{-1, 0 });
+					if (counterclockwise)
+						data.rotateAngle += 3.14159265359f / 2.f;
+
+					data.texType = TexType::SNAKE_CORNER;
+				}
+
+				renderer.addObject(data);
+			}
+
+			renderer.refreshDynamicBuffer();
+		}
+
+		/* ###### stream objects ###### */
+		// apple
+		if (!(eatingApple && snakeMovingCoeff > 0.9f)) {
+			data.rotateAngle = 0.f;
+			data.color = {1.f, 1.f, 1.f, 1.f};
+			data.size = cellSize;
+			data.pos = static_cast<vec2f>(applePos) * cellSize + data.size * 0.5f;
+			data.size *= clock.getAppleBreathingCoeff();
+			data.texType = TexType::APPLE;
+			renderer.addObject(data);
+		}
+
+		static bool newDirectionTail = false;
+		bool drawHead = true;
+		bool drawTail = true;
+
+		data.color = snakeColor;
+		if (snakeMovingCoeff <= 0.5f) { 
+			data.size = cellSize;
+
+			vec2i prev = snakeSize > 2 ? snakeBody[2] : prevTail;
+			vec2i cur = snakeBody[1];
+			vec2i next = head;
 
 			vec2i diff = next - prev;
-			if (diff.x != 0 && diff.y) {
-				vec2i from = prev - cur;
-				vec2i to = next - cur;
-
-				if (from.x < -1 || from.x > 1) 
-					from.x = from.x < -1 ? 1 : -1;
-				else if (from.y < -1 || from.y > 1)
-					from.y = from.y < -1 ? 1 : -1;
-
-				if (to.x < -1 || to.x > 1)
-					to.x = to.x < -1 ? 1 : -1;
-				else if (to.y < -1 || to.y > 1)
-					to.y = to.y < -1 ? 1 : -1;
-
-				bool counterclockwise = (from == vec2i{ 1, 0 } && to == vec2i{ 0,-1 }) 
-									 || (from == vec2i{ 0, 1 } && to == vec2i{ 1, 0 })
-									 || (from == vec2i{-1, 0 } && to == vec2i{ 0, 1 })
-									 || (from == vec2i{ 0,-1 } && to == vec2i{-1, 0 });
-				if (counterclockwise)
-					data.rotateAngle += 3.14159265359f / 2.f;
-
-				data.texType = TexType::SNAKE_CORNER;
-			}
-
-			renderer.addObject(data);
-		}
-
-		renderer.refreshDynamicBuffer();
-	}
-
-	/* ###### stream objects ###### */
-	// apple
-	if (!(eatingApple && snakeMovingCoeff > 0.9f)) {
-		data.rotateAngle = 0.f;
-		data.color = {1.f, 1.f, 1.f, 1.f};
-		data.size = cellSize;
-		data.pos = static_cast<vec2f>(applePos) * cellSize + data.size * 0.5f;
-		data.size *= clock.getAppleBreathingCoeff();
-		data.texType = TexType::APPLE;
-		renderer.addObject(data);
-	}
-
-	static bool newDirectionTail = false;
-	bool drawHead = true;
-	bool drawTail = true;
-
-	data.color = snakeColor;
-	if (snakeMovingCoeff <= 0.5f) { 
-		data.size = cellSize;
-
-		vec2i prev = snakeSize > 2 ? snakeBody[2] : prevTail;
-		vec2i cur = snakeBody[1];
-		vec2i next = head;
-
-		vec2i diff = next - prev;
-		// turning head
-		if (diff.x != 0 && diff.y != 0) {
-			// waiting head
-			data.pos = static_cast<vec2f>(cur) * cellSize + data.size * 0.5f;
-			data.texCoord = {0.f, -0.1f, 1.f, 0.9f };
-			data.rotateAngle = getRotateAngle(cur, prev);
-			data.texType = TexType::SNAKE_TAIL;
-			renderer.addObject(data);
-
-			// dynamic head
-			data.pos = (static_cast<vec2f>(cur) + static_cast<vec2f>(direction) * 0.5f) * cellSize + data.size * 0.5f;
-			data.rotateAngle = getRotateAngle(next + direction, next);
-			data.texCoord = { 0.f, -0.5f + snakeMovingCoeff, 1.f, 0.5f + snakeMovingCoeff};
-
-			if (headThroughBorder) {
-				data.pos = static_cast<vec2f>(head) * cellSize + data.size * 0.5f;
-				data.texCoord = { 0.f, -1.f + snakeMovingCoeff, 1.f, snakeMovingCoeff };
-				renderer.addObject(data);
-
-				data.pos = static_cast<vec2f>(snakeBody[1]) * cellSize + data.size * 0.5f + static_cast<vec2f>(direction) * cellSize * 0.25f;
-				data.texCoord = { 0.f, 0.0f + snakeMovingCoeff, 1.f, 0.5f + snakeMovingCoeff};
-				data.size = { cellSize, cellSize * 0.5f };
-			}
-			renderer.addObject(data);
-
-			drawHead = false;
-		}
-		// aux straight head
-		else if (snakeSize > 2) {
-			data.rotateAngle = getRotateAngle(next, cur);
-			data.pos = static_cast<vec2f>(cur) * cellSize + data.size * 0.5f
-					 - static_cast<vec2f>(direction) * cellSize * 0.25f;
-			data.size = { cellSize, cellSize * 0.5f };
-			data.texCoord = { 0.f, 0.f, 1.f, 0.5f };
-			data.texType = TexType::SNAKE_BODY;
-			renderer.addObject(data);
-		}
-
-		if (newDirectionTail) {
-			float auxSnakeMovingCoeff = snakeMovingCoeff;
-
-			if (!eatingApple) {
-				prev = game.snake().getPrevPrevTail();
-				cur = prevTail;
-				next = tail;
-			} 
-			else {
-				auxSnakeMovingCoeff = 0.f;
-				prev = prevTail;
-				cur = tail; 
-				next = *(snakeBody.rbegin() + 1);
-			}
-
-			// waiting tail
-			data.size = cellSize;
-			data.pos = static_cast<vec2f>(cur) * cellSize + data.size * 0.5f;
-			data.texCoord = {0.f, -0.1f, 1.f, 0.9f };
-			data.rotateAngle = getRotateAngle(cur, next);
-			data.texType = TexType::SNAKE_TAIL;
-			renderer.addObject(data);
-
-			// aux static body to fill space between head and tail in 2sized snake
-			data.pos = static_cast<vec2f>(next) * cellSize + data.size * 0.5f;
-			data.texCoord = { 0.f, 0.5f, 1.f, 1.5f };
-			data.texType = TexType::SNAKE_BODY;
-			renderer.addObject(data);
-
-			// new step after turned tail -- little dynamic tail 
-			diff = cur - prev;
-			if (diff.x != 0) diff.x = (diff.x == -1 || diff.x > 1) ? -1 : 1;
-			else  			 diff.y = (diff.y == -1 || diff.y > 1) ? -1 : 1;
-			data.pos = (static_cast<vec2f>(cur) - static_cast<vec2f>(diff) * 0.5f) * cellSize + data.size * 0.5f;
-			data.texCoord = {0.f, -0.5f - auxSnakeMovingCoeff, 1.f, 0.5f - auxSnakeMovingCoeff};
-			data.rotateAngle = getRotateAngle(prev, cur);
-			data.texType = TexType::SNAKE_TAIL;
-			renderer.addObject(data);
-
-			drawTail = false;
-			if (auxSnakeMovingCoeff > 0.1f)
-				newDirectionTail = false;
-		}
-	}
-	else {
-		data.size = cellSize;
-
-		vec2i prev = prevTail;
-		vec2i cur = tail;
-		vec2i next = *(snakeBody.rbegin() + 1);
-
-		vec2i diff = next - prev;
-		// turning tail
-		if ((diff.x != 0 && diff.y != 0)) {
-			// waiting tail
-			data.size = cellSize;
-			data.pos = static_cast<vec2f>(cur) * cellSize + data.size * 0.5f;
-			data.texCoord = {0.f, -0.1f, 1.f, 0.9f };
-			data.rotateAngle = getRotateAngle(cur, next);
-			data.texType = TexType::SNAKE_TAIL;
-			renderer.addObject(data);
-
-			// dynamic tail
-			diff = cur - prev;
-			if (diff.x != 0) diff.x = (diff.x == -1 || diff.x > 1) ? -1 : 1;
-			else  			 diff.y = (diff.y == -1 || diff.y > 1) ? -1 : 1;
-			data.pos = (static_cast<vec2f>(cur) - static_cast<vec2f>(diff) * 0.5f) * cellSize + data.size * 0.5f;
-			data.rotateAngle = getRotateAngle(prev, cur);
-			data.texCoord = eatingApple ? vec4f{0.f, -0.5f, 1.f, 0.5f }
-									    : vec4f{0.f, 0.5f - snakeMovingCoeff, 1.f, 1.5f - snakeMovingCoeff};
-
-			if (tailThroughBorder) {
+			// turning head
+			if (diff.x != 0 && diff.y != 0) {
+				// waiting head
+				data.pos = static_cast<vec2f>(cur) * cellSize + data.size * 0.5f;
+				data.texCoord = {0.f, -0.1f, 1.f, 0.9f };
+				data.rotateAngle = getRotateAngle(cur, prev);
 				data.texType = TexType::SNAKE_TAIL;
-				data.pos = static_cast<vec2f>(prevTail) * cellSize + data.size * 0.5f;
-				data.texCoord = { 0.f, -snakeMovingCoeff , 1.f, 1.f - snakeMovingCoeff};
 				renderer.addObject(data);
 
-				data.pos = static_cast<vec2f>(tail) * cellSize + data.size * 0.5f - static_cast<vec2f>(diff) * cellSize * 0.25f;
-				data.texCoord = { 0.f, 1.f - snakeMovingCoeff, 1.f, 1.5f - snakeMovingCoeff };
-				data.size = { cellSize, cellSize * 0.5f };
+				// dynamic head
+				data.pos = (static_cast<vec2f>(cur) + static_cast<vec2f>(direction) * 0.5f) * cellSize + data.size * 0.5f;
+				data.rotateAngle = getRotateAngle(next + direction, next);
+				data.texCoord = { 0.f, -0.5f + snakeMovingCoeff, 1.f, 0.5f + snakeMovingCoeff};
+
+				if (headThroughBorder) {
+					data.pos = static_cast<vec2f>(head) * cellSize + data.size * 0.5f;
+					data.texCoord = { 0.f, -1.f + snakeMovingCoeff, 1.f, snakeMovingCoeff };
+					renderer.addObject(data);
+
+					data.pos = static_cast<vec2f>(snakeBody[1]) * cellSize + data.size * 0.5f + static_cast<vec2f>(direction) * cellSize * 0.25f;
+					data.texCoord = { 0.f, 0.0f + snakeMovingCoeff, 1.f, 0.5f + snakeMovingCoeff};
+					data.size = { cellSize, cellSize * 0.5f };
+				}
+				renderer.addObject(data);
+
+				drawHead = false;
 			}
-			renderer.addObject(data);
+			// aux straight head
+			else if (snakeSize > 2) {
+				data.rotateAngle = getRotateAngle(next, cur);
+				data.pos = static_cast<vec2f>(cur) * cellSize + data.size * 0.5f
+						- static_cast<vec2f>(direction) * cellSize * 0.25f;
+				data.size = { cellSize, cellSize * 0.5f };
+				data.texCoord = { 0.f, 0.f, 1.f, 0.5f };
+				data.texType = TexType::SNAKE_BODY;
+				renderer.addObject(data);
+			}
 
-			drawTail = false;
-			newDirectionTail = true;
+			if (newDirectionTail) {
+				float auxSnakeMovingCoeff = snakeMovingCoeff;
+
+				if (!eatingApple) {
+					prev = game.snake().getPrevPrevTail();
+					cur = prevTail;
+					next = tail;
+				} 
+				else {
+					auxSnakeMovingCoeff = 0.f;
+					prev = prevTail;
+					cur = tail; 
+					next = *(snakeBody.rbegin() + 1);
+				}
+
+				// waiting tail
+				data.size = cellSize;
+				data.pos = static_cast<vec2f>(cur) * cellSize + data.size * 0.5f;
+				data.texCoord = {0.f, -0.1f, 1.f, 0.9f };
+				data.rotateAngle = getRotateAngle(cur, next);
+				data.texType = TexType::SNAKE_TAIL;
+				renderer.addObject(data);
+
+				// aux static body to fill space between head and tail in 2sized snake
+				data.pos = static_cast<vec2f>(next) * cellSize + data.size * 0.5f;
+				data.texCoord = { 0.f, 0.5f, 1.f, 1.5f };
+				data.texType = TexType::SNAKE_BODY;
+				renderer.addObject(data);
+
+				// new step after turned tail -- little dynamic tail 
+				diff = cur - prev;
+				if (diff.x != 0) diff.x = (diff.x == -1 || diff.x > 1) ? -1 : 1;
+				else  			 diff.y = (diff.y == -1 || diff.y > 1) ? -1 : 1;
+				data.pos = (static_cast<vec2f>(cur) - static_cast<vec2f>(diff) * 0.5f) * cellSize + data.size * 0.5f;
+				data.texCoord = {0.f, -0.5f - auxSnakeMovingCoeff, 1.f, 0.5f - auxSnakeMovingCoeff};
+				data.rotateAngle = getRotateAngle(prev, cur);
+				data.texType = TexType::SNAKE_TAIL;
+				renderer.addObject(data);
+
+				drawTail = false;
+				if (auxSnakeMovingCoeff > 0.1f)
+					newDirectionTail = false;
+			}
 		}
-		// aux straight tail
-		else if (snakeSize > 2) {
-			vec2i diff = next - cur;
-			if (diff.x != 0) diff.x = (diff.x == -1 || diff.x > 1) ? -1 : 1;
-			else 			 diff.y = (diff.y == -1 || diff.y > 1) ? -1 : 1;
+		else {
+			data.size = cellSize;
 
-			data.pos = static_cast<vec2f>(cur) * cellSize + data.size * 0.5f
-					 + static_cast<vec2f>(diff) * cellSize * 0.25f;
-			data.size = { cellSize, cellSize * 0.5f };
-			data.texCoord = { 0.f, 0.f, 1.f, 0.5f };
-			data.rotateAngle = getRotateAngle(cur, next);
-			data.texType = TexType::SNAKE_BODY;
-			renderer.addObject(data);
+			vec2i prev = prevTail;
+			vec2i cur = tail;
+			vec2i next = *(snakeBody.rbegin() + 1);
+
+			vec2i diff = next - prev;
+			// turning tail
+			if ((diff.x != 0 && diff.y != 0)) {
+				// waiting tail
+				data.size = cellSize;
+				data.pos = static_cast<vec2f>(cur) * cellSize + data.size * 0.5f;
+				data.texCoord = {0.f, -0.1f, 1.f, 0.9f };
+				data.rotateAngle = getRotateAngle(cur, next);
+				data.texType = TexType::SNAKE_TAIL;
+				renderer.addObject(data);
+
+				// dynamic tail
+				diff = cur - prev;
+				if (diff.x != 0) diff.x = (diff.x == -1 || diff.x > 1) ? -1 : 1;
+				else  			 diff.y = (diff.y == -1 || diff.y > 1) ? -1 : 1;
+				data.pos = (static_cast<vec2f>(cur) - static_cast<vec2f>(diff) * 0.5f) * cellSize + data.size * 0.5f;
+				data.rotateAngle = getRotateAngle(prev, cur);
+				data.texCoord = eatingApple ? vec4f{0.f, -0.5f, 1.f, 0.5f }
+											: vec4f{0.f, 0.5f - snakeMovingCoeff, 1.f, 1.5f - snakeMovingCoeff};
+
+				if (tailThroughBorder) {
+					data.texType = TexType::SNAKE_TAIL;
+					data.pos = static_cast<vec2f>(prevTail) * cellSize + data.size * 0.5f;
+					data.texCoord = { 0.f, -snakeMovingCoeff , 1.f, 1.f - snakeMovingCoeff};
+					renderer.addObject(data);
+
+					data.pos = static_cast<vec2f>(tail) * cellSize + data.size * 0.5f - static_cast<vec2f>(diff) * cellSize * 0.25f;
+					data.texCoord = { 0.f, 1.f - snakeMovingCoeff, 1.f, 1.5f - snakeMovingCoeff };
+					data.size = { cellSize, cellSize * 0.5f };
+				}
+				renderer.addObject(data);
+
+				drawTail = false;
+				newDirectionTail = true;
+			}
+			// aux straight tail
+			else if (snakeSize > 2) {
+				vec2i diff = next - cur;
+				if (diff.x != 0) diff.x = (diff.x == -1 || diff.x > 1) ? -1 : 1;
+				else 			 diff.y = (diff.y == -1 || diff.y > 1) ? -1 : 1;
+
+				data.pos = static_cast<vec2f>(cur) * cellSize + data.size * 0.5f
+						+ static_cast<vec2f>(diff) * cellSize * 0.25f;
+				data.size = { cellSize, cellSize * 0.5f };
+				data.texCoord = { 0.f, 0.f, 1.f, 0.5f };
+				data.rotateAngle = getRotateAngle(cur, next);
+				data.texType = TexType::SNAKE_BODY;
+				renderer.addObject(data);
+			}
 		}
-	}
 
-	// snake head
-	if (drawHead) {
-		vec2f alpha = static_cast<vec2f>(direction) * snakeMovingCoeff;
+		// snake head
+		if (drawHead) {
+			vec2f alpha = static_cast<vec2f>(direction) * snakeMovingCoeff;
 
+			data.size = cellSize;
+			data.pos = (static_cast<vec2f>(snakeBody[1]) + alpha) * cellSize + data.size * 0.5f;
+			data.texType = TexType::SNAKE_TAIL;
+			data.texCoord = {0.f, 0.f, 1.f, 1.f};
+			data.rotateAngle = getRotateAngle(head + direction, head);
+
+			if (!headThroughBorder)
+				renderer.addObject(data);
+			else
+				addThroughObjects(renderer, data, direction, fieldSize, true);
+		}
+
+		// snake tail
+		if (drawTail) {
+			vec2i diff = tail - prevTail;
+			if (diff.x != 0) diff.x = (diff.x == 1 || diff.x < -1) ? 1 : -1;
+			else 			 diff.y = (diff.y == 1 || diff.y < -1) ? 1 : -1;
+
+			vec2f alpha = static_cast<vec2f>(diff) * snakeMovingCoeff;
+
+			data.size = cellSize;
+			data.pos = (static_cast<vec2f>(prevTail) + alpha) * cellSize + data.size * 0.5f;
+			data.texType = TexType::SNAKE_TAIL;
+			data.texCoord = { 0.f, 0.f, 1.f, 1.f };
+			data.rotateAngle = getRotateAngle(prevTail, tail);
+
+			if (eatingApple)
+				data.pos = static_cast<vec2f>(tail) * cellSize + data.size * 0.5f;
+			if (!tailThroughBorder || eatingApple)
+				renderer.addObject(data);
+			else
+				addThroughObjects(renderer, data, diff, fieldSize, false);
+		}
+
+		// eyes
 		data.size = cellSize;
-		data.pos = (static_cast<vec2f>(snakeBody[1]) + alpha) * cellSize + data.size * 0.5f;
-		data.texType = TexType::SNAKE_TAIL;
+		const vec2f eyePlaceSize = cellSize * 0.45f;
+		const vec2f eyeSize = cellSize * 0.3f;
+		const vec2f alpha = static_cast<vec2f>(direction) * snakeMovingCoeff;
+		const vec2f eyePos = (static_cast<vec2f>(snakeBody[1]) + alpha) * cellSize + data.size * 0.5f;
+
+		vec2f eye1Pos = eyePos;
+		vec2f eye2Pos = eyePos;
+
+		float coeff = (direction.x > 0 || direction.y > 0) ? -1.f : 1.f;
+		if (direction.y != 0) {
+			eye2Pos.x = eye1Pos.x += cellSize * 0.35f * coeff;
+			eye2Pos.y = eye1Pos.y += cellSize * 0.3f * coeff;
+			eye2Pos.x -= -coeff * (-cellSize + eyePlaceSize.x - 6.f);
+		} else {
+			eye2Pos.x = eye1Pos.x += cellSize * 0.3f * coeff;
+			eye2Pos.y = eye1Pos.y += cellSize * 0.35f * coeff;
+			eye2Pos.y -= -coeff * (-cellSize + eyePlaceSize.y - 6.f);
+		}
+
+		data.color = { snakeColor.x - 0.03f, snakeColor.y - 0.03f, snakeColor.z - 0.03f, snakeColor.w };
 		data.texCoord = {0.f, 0.f, 1.f, 1.f};
 		data.rotateAngle = getRotateAngle(head + direction, head);
+		data.texType = TexType::EYE_ORBIT;
+		data.pos = eye1Pos;
+		data.size = eyePlaceSize;
 
+		// eye places
+		if (!headThroughBorder)
+			renderer.addObject(data);		
+		else
+			addThroughObjects(renderer, data, direction, fieldSize, true);
+		
+		data.pos = eye2Pos;
 		if (!headThroughBorder)
 			renderer.addObject(data);
 		else
 			addThroughObjects(renderer, data, direction, fieldSize, true);
-	}
 
-	// snake tail
-	if (drawTail) {
-		vec2i diff = tail - prevTail;
-		if (diff.x != 0) diff.x = (diff.x == 1 || diff.x < -1) ? 1 : -1;
-		else 			 diff.y = (diff.y == 1 || diff.y < -1) ? 1 : -1;
+		// eyes
+		if (!(headThroughBorder && snakeMovingCoeff > 0.6f) && !clock.isBlinkTime()) {
+			if (!eatingApple && !straightView) {
+				vec2f diff = eyePos - (static_cast<vec2f>(applePos) * cellSize + data.size * 0.5f);
+				diff.y = -diff.y;
+				data.rotateAngle = std::atan2(diff.x, diff.y);
+			} else {
+				straightView = true;
+			}
 
-		vec2f alpha = static_cast<vec2f>(diff) * snakeMovingCoeff;
-
-		data.size = cellSize;
-		data.pos = (static_cast<vec2f>(prevTail) + alpha) * cellSize + data.size * 0.5f;
-		data.texType = TexType::SNAKE_TAIL;
-		data.texCoord = { 0.f, 0.f, 1.f, 1.f };
-		data.rotateAngle = getRotateAngle(prevTail, tail);
-
-		if (eatingApple)
-			data.pos = static_cast<vec2f>(tail) * cellSize + data.size * 0.5f;
-		if (!tailThroughBorder || eatingApple)
+			data.color = {1.f, 1.f, 1.f, 1.f};
+			data.texType = TexType::EYE;
+			data.texCoord = { 0.f, 0.f, 1.f, 1.f };
+			data.size = eyeSize;
+			data.pos = eye1Pos;
 			renderer.addObject(data);
-		else
-			addThroughObjects(renderer, data, diff, fieldSize, false);
-	}
 
-	// eyes
-	data.size = cellSize;
-	const vec2f eyePlaceSize = cellSize * 0.45f;
-	const vec2f eyeSize = cellSize * 0.3f;
-	const vec2f alpha = static_cast<vec2f>(direction) * snakeMovingCoeff;
-	const vec2f eyePos = (static_cast<vec2f>(snakeBody[1]) + alpha) * cellSize + data.size * 0.5f;
+			data.pos = eye2Pos;
+			renderer.addObject(data);
+		}
 
-	vec2f eye1Pos = eyePos;
-	vec2f eye2Pos = eyePos;
-
-	float coeff = (direction.x > 0 || direction.y > 0) ? -1.f : 1.f;
-	if (direction.y != 0) {
-		eye2Pos.x = eye1Pos.x += cellSize * 0.35f * coeff;
-		eye2Pos.y = eye1Pos.y += cellSize * 0.3f * coeff;
-		eye2Pos.x -= -coeff * (-cellSize + eyePlaceSize.x - 6.f);
-	} else {
-		eye2Pos.x = eye1Pos.x += cellSize * 0.3f * coeff;
-		eye2Pos.y = eye1Pos.y += cellSize * 0.35f * coeff;
-		eye2Pos.y -= -coeff * (-cellSize + eyePlaceSize.y - 6.f);
-	}
-
-	data.color = { snakeColor.x - 0.03f, snakeColor.y - 0.03f, snakeColor.z - 0.03f, snakeColor.w };
-	data.texCoord = {0.f, 0.f, 1.f, 1.f};
-	data.rotateAngle = getRotateAngle(head + direction, head);
-	data.texType = TexType::EYE_ORBIT;
-	data.pos = eye1Pos;
-	data.size = eyePlaceSize;
-
-	// eye places
-	if (!headThroughBorder)
-		renderer.addObject(data);		
-	else
-		addThroughObjects(renderer, data, direction, fieldSize, true);
-	
-	data.pos = eye2Pos;
-	if (!headThroughBorder)
+		renderer.refreshStreamBuffer();
+	} 
+	else {
+		if (!isMenuStatus) {
+			isMenuStatus = true;
+			renderer.refreshDynamicBuffer();
+		}
+		data.color = (themeColor.x < 0.7f && themeColor.y < 0.7f && themeColor.z < 0.7f) 
+					? vec4f{ 1.f, 1.f, 1.f, 1.f} 
+					: vec4f{0.f, 0.f, 0.f, 1.f };
+		data.size = 256.f * clock.getAppleBreathingCoeff();
+		data.pos = fieldSize * 0.5f;
+		data.texType = TexType::PLAY;
 		renderer.addObject(data);
-	else
-		addThroughObjects(renderer, data, direction, fieldSize, true);
-
-	// eyes
-	if (!(headThroughBorder && snakeMovingCoeff > 0.6f) && !clock.isBlinkTime()) {
-		vec2f diff = eyePos - (static_cast<vec2f>(applePos) * cellSize + data.size * 0.5f);
-		diff.y = -diff.y;
-
-		data.rotateAngle = std::atan2(diff.x, diff.y);
-		data.color = {1.f, 1.f, 1.f, 1.f};
-		data.texType = TexType::EYE;
-		data.texCoord = { 0.f, 0.f, 1.f, 1.f };
-		data.size = eyeSize;
-		data.pos = eye1Pos;
-		renderer.addObject(data);
-
-		data.pos = eye2Pos;
-		renderer.addObject(data);
+		renderer.refreshStreamBuffer();
 	}
-
-	// // cloding eye
-	// if (headThroughBorder && snakeMovingCoeff <= 0.6f) {
-	// 	color = {0.15f, 0.37f, 0.2f, 1.f};
-	// 	pos = eyePos;
-	// 	texCoord = {0.f, 0.f, 1.f, 1.f};
-	// 	rotateAngle = getRotateAngle(head + direction, head);
-	// 	texCoord = { 0.49f, 1.f - snakeMovingCoeff * 1.f, 0.51f, 2 - snakeMovingCoeff * 1.f };
-
-	// 	if (direction.x == 0) {
-	// 		pos.x += cellSize * 0.35f * (direction.y > 0 ? -1.f : 1.f);
-	// 		pos.y += cellSize * 0.3f * (direction.y > 0 ? -1.f : 1.f);
-	// 	} else {
-	// 		pos.x += cellSize * 0.3f * (direction.x > 0 ? -1.f : 1.f);
-	// 		pos.y += cellSize * 0.35f * (direction.x > 0 ? -1.f : 1.f);
-	// 	}
-	// 	renderer.addObject(
-	// 		eyeSize, pos, TexType::EYE_ORBIT,
-	// 		texCoord, color, rotateAngle
-	// 	);
-
-	// 	pos = eyePos;
-	// 	if (direction.x == 0) {
-	// 		pos.x += cellSize * 0.35f * (direction.y > 0 ? 1.f : -1.f);
-	// 		pos.y += cellSize * 0.3f * (direction.y > 0 ? -1.f : 1.f);
-	// 	} else {
-	// 		pos.x += cellSize * 0.3f * (direction.x > 0 ? -1.f : 1.f);
-	// 		pos.y += cellSize * 0.35f * (direction.x > 0 ? 1.f : -1.f);
-	// 	}
-	// 	renderer.addObject(
-	// 		eyeSize, pos, TexType::EYE_ORBIT,
-	// 		texCoord, color, rotateAngle
-	// 	);
-
-	// 	pos = eyePos;
-	// 	texCoord = { 0.49f, -1.f + snakeMovingCoeff * 1.f, 0.51f, 0 + snakeMovingCoeff * 1.f };
-	// 	if (direction.x == 0) {
-	// 		pos.x += cellSize * 0.35f * (direction.y > 0 ? -1.f : 1.f);
-	// 		pos.y += cellSize * 0.3f * (direction.y > 0 ? -1.f : 1.f);
-	// 	} else {
-	// 		pos.x += cellSize * 0.3f * (direction.x > 0 ? -1.f : 1.f);
-	// 		pos.y += cellSize * 0.35f * (direction.x > 0 ? -1.f : 1.f);
-	// 	}
-	// 	renderer.addObject(
-	// 		eyeSize, pos, TexType::EYE_ORBIT,
-	// 		texCoord, color, rotateAngle
-	// 	);
-
-	// 	pos = eyePos;
-	// 	if (direction.x == 0) {
-	// 		pos.x += cellSize * 0.35f * (direction.y > 0 ? 1.f : -1.f);
-	// 		pos.y += cellSize * 0.3f * (direction.y > 0 ? -1.f : 1.f);
-	// 	} else {
-	// 		pos.x += cellSize * 0.3f * (direction.x > 0 ? -1.f : 1.f);
-	// 		pos.y += cellSize * 0.35f * (direction.x > 0 ? 1.f : -1.f);
-	// 	}
-	// 	renderer.addObject(
-	// 		eyeSize, pos, TexType::EYE_ORBIT,
-	// 		texCoord, color, rotateAngle
-	// 	);
-	// }
-
-	renderer.refreshStreamBuffer();
 	renderer.draw();
 }
 

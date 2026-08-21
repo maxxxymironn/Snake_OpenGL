@@ -7,5 +7,6 @@ enum class TexType {
     SNAKE_TAIL,
     SNAKE_CORNER,
     EYE_ORBIT,
-    EYE
+    EYE,
+    PLAY
 };

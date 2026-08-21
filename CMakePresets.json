@@ -2,6 +2,18 @@
   "version": 5,
   "configurePresets": [
     {
+      "name": "ninja-release-linux",
+      "displayName": "Ninja Release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/ninja/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_EXE_LINKER_FLAGS": "-static-libstdc++ -static-libgcc -s"
+      }
+    },
+    {
       "name": "ninja-debug",
       "displayName": "Ninja Debug",
       "generator": "Ninja",
@@ -45,6 +57,10 @@
   ],
   
   "buildPresets": [
+    {
+      "name": "ninja-release-linux",
+      "configurePreset": "ninja-release-linux"
+    },
     {
       "name": "ninja-debug",
       "configurePreset": "ninja-debug"

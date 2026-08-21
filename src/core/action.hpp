@@ -3,6 +3,7 @@
 enum class Action {
     Exit,
     Pause,
+    Space,
 
     MoveUp,
     MoveDown,
