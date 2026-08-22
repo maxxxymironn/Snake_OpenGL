@@ -19,6 +19,7 @@ class Game {
     int m_score;
 
     bool generateApple;
+    bool _pravednovHead = false;
 
     bool checkLoose(vec2i& newHead);
 public:
@@ -43,4 +44,11 @@ public:
     
     void updateStatus(GameStatus status);
     void saveStats();
+
+    void setPravednovHead() {
+        _pravednovHead = true;
+        _snakeColor = { 0.89f, 0.73f, 0.77f, 1.f };
+    }
+    void setDefaultHead();
+    bool getPravednovBool() const { return _pravednovHead; }
 };

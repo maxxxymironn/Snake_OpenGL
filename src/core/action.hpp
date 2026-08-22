@@ -14,6 +14,8 @@ enum class Action {
     ScaleDown,
     ZenMode,
 
+    EasterEgg,
+
     COUNT
 };
 

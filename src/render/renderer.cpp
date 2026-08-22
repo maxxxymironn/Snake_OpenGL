@@ -8,6 +8,7 @@
 #include "../../resources/textures/eye_orbit.hpp"
 #include "../../resources/textures/eye.hpp"
 #include "../../resources/textures/play.hpp"
+#include "../../resources/textures/pravednov.hpp"
 
 #include "../config/draw_config.hpp"
 #include "../core/rectangle.hpp"
@@ -136,7 +137,7 @@ void Renderer::init() {
 
     // setting textures
     constexpr GLsizei TEX_SIZE = 128;
-    constexpr GLsizei LAYER_COUNT = 8;
+    constexpr GLsizei LAYER_COUNT = 9;
     constexpr const unsigned char* TEX_DATA_ARRAY[LAYER_COUNT] = {
         &field[0],
         &apple[0],
@@ -145,7 +146,8 @@ void Renderer::init() {
         &corner[0],
         &eye_orbit[0],
         &eye[0],
-        &play[0]
+        &play[0],
+        &pravednov[0]
     };
 
     glGenTextures(1, &_textureArray);

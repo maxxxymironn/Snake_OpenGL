@@ -146,6 +146,7 @@ void checkPressedKeys(Window& window, Renderer& renderer, Game& game, Clock& clo
 		else {
 			window.showDetailedTitle(false);
 			game.updateStatus(GameStatus::MENU);
+			game.setDefaultHead();
 			if (clock.isPauseTime())
 				clock.updatePauseStatus();
 		}
@@ -185,6 +186,12 @@ void checkPressedKeys(Window& window, Renderer& renderer, Game& game, Clock& clo
 		if (inputManager.isKeyPressed(Action::Pause)) {
 			clock.updatePauseStatus();
 			inputManager.changeWorkStatus();
+		}
+		else if (inputManager.isKeyPressed(Action::EasterEgg)) {
+			if (game.getPravednovBool())
+				game.setDefaultHead();
+			else 
+				game.setPravednovHead();
 		}
 	}
 }
@@ -626,25 +633,40 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 		else
 			addThroughObjects(renderer, data, direction, fieldSize, true);
 
+		data.color = {1.f, 1.f, 1.f, 1.f};
+		data.texCoord = { 0.f, 0.f, 1.f, 1.f };
 		// eyes
-		if (!(headThroughBorder && snakeMovingCoeff > 0.6f) && !clock.isBlinkTime()) {
-			if (!eatingApple && !straightView) {
-				vec2f diff = eyePos - (static_cast<vec2f>(applePos) * cellSize + data.size * 0.5f);
-				diff.y = -diff.y;
-				data.rotateAngle = std::atan2(diff.x, diff.y);
-			} else {
-				straightView = true;
+		if (!game.getPravednovBool()) {
+			if (!(headThroughBorder && snakeMovingCoeff > 0.6f) && !clock.isBlinkTime()) {
+				if (!eatingApple && !straightView) {
+					vec2f diff = eyePos - (static_cast<vec2f>(applePos) * cellSize + data.size * 0.5f);
+					diff.y = -diff.y;
+					data.rotateAngle = std::atan2(diff.x, diff.y);
+				} else {
+					straightView = true;
+				}
+
+				data.texType = TexType::EYE;
+				data.size = eyeSize;
+				data.pos = eye1Pos;
+				renderer.addObject(data);
+
+				data.pos = eye2Pos;
+				renderer.addObject(data);
 			}
-
-			data.color = {1.f, 1.f, 1.f, 1.f};
-			data.texType = TexType::EYE;
-			data.texCoord = { 0.f, 0.f, 1.f, 1.f };
-			data.size = eyeSize;
-			data.pos = eye1Pos;
-			renderer.addObject(data);
-
-			data.pos = eye2Pos;
-			renderer.addObject(data);
+		}
+		else {
+			data.texType = TexType::PRAVEDNOV;
+			// data.size = direction == Direction::RIGHT ? vec2f{ 80.f, -80.f } : 80.f;
+			data.size = 80.f;
+			if (direction == Direction::RIGHT)
+				data.texCoord = { 0.f, 1.f, 1.f, 0.f };
+			data.pos = eyePos;
+			data.rotateAngle -= 1.570796f;
+			if (!headThroughBorder)
+				renderer.addObject(data);
+			else
+				addThroughObjects(renderer, data, direction, fieldSize, true);
 		}
 
 		renderer.refreshStreamBuffer();

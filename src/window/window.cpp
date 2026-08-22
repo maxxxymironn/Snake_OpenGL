@@ -37,6 +37,8 @@ namespace {
         keyMap[GLFW_KEY_MINUS] = Action::ScaleDown;
 
         keyMap[GLFW_KEY_Z] = Action::ZenMode;
+
+        keyMap[GLFW_KEY_M] = Action::EasterEgg;
     }
 }
 

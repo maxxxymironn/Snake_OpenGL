@@ -136,3 +136,8 @@ void Game::saveStats() {
     GameConfig::xFieldSize = fieldSize.x;
     GameConfig::yFieldSize = fieldSize.y;
 }
+
+void Game::setDefaultHead() {
+    _pravednovHead = false;
+    _snakeColor = GameConfig::snakeColor;
+}

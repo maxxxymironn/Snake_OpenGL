@@ -7,7 +7,7 @@ void InputManager::update() {
 }
 
 void InputManager::setKey(Action key, bool pressed, Mod mods) {
-    if (key == Action::ScaleUp || key == Action::ScaleDown || key == Action::ZenMode) {
+    if (key == Action::ScaleUp || key == Action::ScaleDown || key == Action::ZenMode || key == Action::EasterEgg) {
         if (mods == Mod::CTRL)
             currentKeys[static_cast<int>(key)] = pressed;
         return;
