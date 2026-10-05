@@ -2,6 +2,17 @@
   "version": 5,
   "configurePresets": [
     {
+      "name": "win64-mingw",
+      "displayName": "Windows x64 (MinGW Cross)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/win64/",
+      "toolchainFile": "${sourceDir}/mingw-w64.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_EXE_LINKER_FLAGS": "-static -static-libstdc++ -static-libgcc -s"
+      }
+    },
+    {
       "name": "ninja-release-linux",
       "displayName": "Ninja Release",
       "generator": "Ninja",
@@ -57,6 +68,10 @@
   ],
   
   "buildPresets": [
+    {
+      "name": "win64-mingw",
+      "configurePreset": "win64-mingw"
+    },
     {
       "name": "ninja-release-linux",
       "configurePreset": "ninja-release-linux"

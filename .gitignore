@@ -4,3 +4,4 @@ temp
 .cache
 .clangd
 compile_commands.json
+mingw-w64.cmake
