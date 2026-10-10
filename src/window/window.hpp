@@ -5,9 +5,11 @@
 #include <functional>
 
 class GLFWwindow;
+class GLFWcursor;
 
 class Window {
     GLFWwindow* _handle = nullptr;
+    GLFWcursor* _cursorHandle = nullptr;
 
     vec4i _windowParam;
     vec2i _bufferSize;
@@ -30,6 +32,7 @@ class Window {
 
     static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
     static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
+    static void cursorPosCallback(GLFWwindow* window, double xPos, double yPos);
     static void sizeCallback(GLFWwindow* window, int width, int height);
     static void framebufferSizeCallback(GLFWwindow* window, int width, int height);
     static void contentSizeCallback(GLFWwindow* window, float xScale, float yScale);

@@ -13,6 +13,22 @@
 inline static Action keyMap[GLFW_KEY_LAST + 1];
 
 namespace {
+    bool menuMode = true;
+    bool isHandCursor = false;
+
+    bool isCursorInTriggerZone(vec2f cursorPos, vec4f triggerZone, const float scale) {
+        triggerZone *= scale;
+        cursorPos *= scale;
+        float halfSizeX = triggerZone.z * scale * 0.5f;
+        float halfSizeY = triggerZone.w * scale * 0.5f;
+        
+        float left = triggerZone.x - halfSizeX;
+        float top = triggerZone.y - halfSizeY;
+
+        return cursorPos.x >= left && cursorPos.x <= left + halfSizeX * 2.f
+            && cursorPos.y >= top && cursorPos.y <= top + halfSizeY * 2.f;
+    }
+    
     void mapKey() {
         for (int i = 0; i <= GLFW_KEY_LAST; ++i)
             keyMap[i] = Action::COUNT;
@@ -81,19 +97,36 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
 
 void Window::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
     Window* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
-    if (self && button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+    if (self && menuMode && button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
         double x, y;
         glfwGetCursorPos(window, &x, &y);
         vec2f cursorPos = vec2f{ static_cast<float>(x), static_cast<float>(y) };
+        vec4f triggerZone = vec4f{ self->_windowParam.x * 0.5f, self->_windowParam.y * 0.5f, 300.f, 300.f };
         
-        float left = self->_windowParam.x * 0.5f - 150.f * self->_contentScale;
-        float top = self->_windowParam.y * 0.5f - 150.f * self->_contentScale;
-        vec4f triggerZone = vec4f{ left, top, left + 300.f * self->_contentScale, top + 300.f * self->_contentScale};
-
-        bool inTriggerZone = cursorPos.x <= triggerZone.z && cursorPos.x >= triggerZone.x
-                          && cursorPos.y <= triggerZone.w && cursorPos.y >= triggerZone.y;
-        if (inTriggerZone)
+        if (isCursorInTriggerZone(cursorPos, triggerZone, self->_windowScale * self->_contentScale)) {
             self->_buttonClicked = true;
+            menuMode = false;
+            glfwSetCursor(self->_handle, nullptr);
+            isHandCursor = false;
+        }
+    }
+}
+
+void Window::cursorPosCallback(GLFWwindow *window, double xPos, double yPos) {
+    Window* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    if (self && menuMode) {        
+        vec2f cursorPos = vec2f{ static_cast<float>(xPos), static_cast<float>(yPos) };
+        vec4f triggerZone = vec4f{ self->_windowParam.x * 0.5f, self->_windowParam.y * 0.5f, 300.f, 300.f };
+        
+        bool inTriggerZone = isCursorInTriggerZone(cursorPos, triggerZone, self->_windowScale * self->_contentScale);
+        if (inTriggerZone && !isHandCursor) {
+            isHandCursor = true;
+            glfwSetCursor(self->_handle, self->_cursorHandle);
+        }
+        else if (!inTriggerZone && isHandCursor) {
+            isHandCursor = false;
+            glfwSetCursor(self->_handle, nullptr);
+        }
     }
 }
 
@@ -223,9 +256,11 @@ Window::Window()
         exit(1);
     }
 
-    glfwSetWindowUserPointer(_handle, this);    
+    glfwSetWindowUserPointer(_handle, this);
     glfwSetWindowSizeLimits(_handle, 1200, 800, mode->width, mode->height);
     glfwSetWindowPos(_handle, _windowParam.z, _windowParam.w);
+
+    _cursorHandle = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
 
     // GLFWimage icon;
     // icon.width = 48;
@@ -240,6 +275,7 @@ Window::Window()
     glfwSetWindowRefreshCallback(_handle, Window::refreshCallback);
     glfwSetKeyCallback(_handle, Window::keyCallback);
     glfwSetMouseButtonCallback(_handle, Window::mouseButtonCallback);
+    glfwSetCursorPosCallback(_handle, Window::cursorPosCallback);
     glfwSetWindowContentScaleCallback(_handle, Window::contentSizeCallback);
     glfwSetErrorCallback(Window::errorCallback);
 
@@ -258,8 +294,9 @@ Window::Window()
 }
 
 Window::~Window() {
+    glfwDestroyCursor(_cursorHandle);
     glfwTerminate();
-
+    
     WindowConfig::fullscreen = _fullscreen;
     WindowConfig::windowWidth = _windowParam.x;
     WindowConfig::windowHeight = _windowParam.y;
@@ -287,6 +324,9 @@ void Window::updateScore(const bool toIncrement) {
 
 void Window::showDetailedTitle(const bool show) {
     _showDetailedTitle = show;
-    if (!show)
+    if (!show) {
         glfwSetWindowTitle(_handle, "Snake");
+        glfwSetCursor(_handle, nullptr);
+        menuMode = true;
+    }
 }
