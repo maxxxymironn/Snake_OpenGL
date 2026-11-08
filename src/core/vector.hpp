@@ -109,6 +109,14 @@ struct vec4 {
         return *this;
     }
 
+    vec4& operator-=(const T n) {
+        x -= n;
+        y -= n;
+        z -= n;
+        w -= n;
+        return *this;
+    }
+
     vec4& operator*=(const T& n) {
         x *= n;
         y *= n;
@@ -159,6 +167,12 @@ template <typename T>
 inline vec4<T> operator-(vec4<T> lVec, const vec4<T>& rVec) {
     lVec -= rVec;
     return lVec;
+}
+
+template <typename T>
+inline vec4<T> operator-(vec4<T> vec, const T& n) {
+    vec -= n;
+    return vec;
 }
 
 template <typename T>

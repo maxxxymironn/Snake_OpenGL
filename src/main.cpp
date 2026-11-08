@@ -20,15 +20,11 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock);
 
 float getRotateAngle(const vec2i v1, const vec2i v2);
 
-void cut(
-	vec2f& size, vec2f& pos, vec4f& texCoord, const vec2f fieldSize, 
-	const bool enter, const bool forward, const bool horizontal
-);
+void addThroughObjects(Renderer& renderer, const rectangleData& data, const vec2i direction,
+                       const vec2f fieldSize, const bool forward);
 
-void addThroughObjects(
-	Renderer& renderer, const rectangleData& data, const vec2i direction, 
-	const vec2f fieldSize, const bool forward
-);
+void cut(vec2f& size, vec2f& pos, vec4f& texCoord, const vec2f fieldSize,
+         const bool enter, const bool forward, const bool horizontal);
 
 int main() {
 	ConfigManager configManager;
@@ -41,7 +37,7 @@ int main() {
 	}
 	Game game;
 	Clock clock; // TODO: maybe class Clock should be in composition with class Game
-	
+
 	window.setInputManagerSetKey(
 		[&inputManager](Action actionKey, bool isPressed, Mod mods) {
 			inputManager.setKey(actionKey, isPressed, mods);
@@ -52,7 +48,7 @@ int main() {
 	window.updateFieldSize(static_cast<vec2i>(game.field().getFieldSize()));
 	renderer.setContentScale(window.getContentScale());
 	renderer.setViewSize(window.getViewSize());
-	
+
 	{
 		vec4f clearColor = game.getThemeColor() - vec4f{0.1f, 0.1f, 0.1f, 0.f};
 		renderer.setClearColor(clearColor);
@@ -68,14 +64,14 @@ int main() {
 		draw(renderer, game, clock);
 
 		checkPressedKeys(window, renderer, game, clock, inputManager);
-		
+
 		/* Logic part */
 		if (!clock.isPauseTime()) {
 			if (game.status() == GameStatus::GAME) {
 				while(clock.isUpdateTime()) {
 					updateDir(game.snake(), inputManager);
 					game.update();
-				
+
 					clock.updateGameStepAccumulator();
 
 					if (game.apple().isNew()) {
@@ -190,7 +186,7 @@ void checkPressedKeys(Window& window, Renderer& renderer, Game& game, Clock& clo
 		else if (inputManager.isKeyPressed(Action::EasterEgg)) {
 			if (game.getPravednovBool())
 				game.setDefaultHead();
-			else 
+			else
 				game.setPravednovHead();
 		}
 	}
@@ -218,9 +214,10 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 
 	const vec4f snakeColor = game.getSnakeColor();
 	const vec4f themeColor = game.getThemeColor();
+	const vec4f secondThemeColor = themeColor - 0.05f;
 
 	rectangleData data(
-		cellSize, {0.f, 0.f}, {1.f, 1.f, 1.f, 1.f}, 
+		cellSize, {0.f, 0.f}, {1.f, 1.f, 1.f, 1.f},
 		{0.f, 0.f, 1.f, 1.f}, TexType::SNAKE_BODY, 0.f
 	);
 
@@ -235,46 +232,35 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 	) {
 		renderer.setOrigin(vec2f{ 0.f, 0.f });
 
-		constexpr vec2f minViewSize{1200.f, 800.f};
+		constexpr vec2f minViewSize{800.f, 1000.f};
 		constexpr vec2f fieldTexSize{80.f, 80.f};
 		vec2i rawFieldSize(game.field().getFieldSize());
 
 		vec2f startPos(0.f, 0.f);
 		if (!renderer.isZenMode()) {
-			startPos.x = fieldSize.x < minViewSize.x - 400.f ? (minViewSize.x - fieldSize.x) * 0.5f : 200.f;
-			startPos.y = fieldSize.y < minViewSize.y ? (minViewSize.y - fieldSize.y) * 0.5f : 20.f;
+			startPos.x = fieldSize.x <= minViewSize.x ? (minViewSize.x - fieldSize.x + cellSize) * 0.5f : 20.f;
+			startPos.y = (fieldSize.y <= minViewSize.y - 200.f ? (minViewSize.y - 200.f - fieldSize.y) * 0.5f : 0.f) + 20.f;
 		}
 		startPos += fieldTexSize * 0.5f;
 		const vec2f fieldStartPos = startPos - fieldTexSize * 0.5f;
-		
+
 		// =================== panels
 		if (!renderer.isZenMode()) {
 			data.color = {themeColor.x - 0.05f, themeColor.y - 0.05f, themeColor.z - 0.05f, themeColor.w};
 			data.size = { 200.f, 800.f };
 			data.texType = TexType::SNAKE_BODY;
 			data.texCoord = { 0.f, 0.f, 1.f, 1.f };
+			data.rotateAngle = 3.141592f * 0.5f;
 
-			// =================== left panel
-			vec2f panelPos = data.pos = vec2f{
-				0.f, 
-				(fieldSize.y < minViewSize.y ? 0.f : (fieldSize.y - data.size.y) * 0.5f) + 20.f
-			} + data.size * 0.5f;
+			// ===== info panel =====
+			data.pos = vec2f{
+			    fieldStartPos.x + fieldSize.x * 0.5f,
+				(fieldSize.y <= minViewSize.y - 200.f ? minViewSize.y - data.size.x * 0.5f : fieldSize.y + 100.f) + 20.f
+			};
 			renderer.addObject(data);
+			data.rotateAngle = 0.f;
 
-			// ~~~~~~~~~~~~~~~~~~~ icons on the left panel
-
-			// =================== right panel
-			data.color = {themeColor.x - 0.05f, themeColor.y - 0.05f, themeColor.z - 0.05f, themeColor.w};
-			data.size = { 200.f, 800.f };
-			data.texType = TexType::SNAKE_BODY;
-			constexpr float minRightPanelX = 1000.f;
-			float rightPanelX = fieldStartPos.x + fieldSize.x;
-			
-			data.pos = panelPos;
-			data.pos.x = (rightPanelX < minRightPanelX ? minRightPanelX : rightPanelX) + data.size.x * 0.5f;
-			renderer.addObject(data);
-
-			// ~~~~~~~~~~~~~~~~~~~ icons on the right panel
+			// ~~~~~ icons on the panel ~~~~~
 		}
 
 		// =================== field
@@ -293,7 +279,7 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 			);
 			for (int x = 0; x < fieldCellsCount.x; ++x) {
 				for (int y = 0; y < fieldCellsCount.y; ++y) {
-					data.pos = startPos + vec2f{ data.size.x * x, data.size.y * y }; 
+					data.pos = startPos + vec2f{ data.size.x * x, data.size.y * y };
 					renderer.addObject(data);
 				}
 			}
@@ -339,9 +325,9 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 		static vec2i lastHead(*(snakeBody.begin() + 1));
 		static bool straightView = false;
 
-		const bool headThroughBorder = std::abs(head.x - snakeBody[1].x) > 1 
+		const bool headThroughBorder = std::abs(head.x - snakeBody[1].x) > 1
 									|| std::abs(head.y - snakeBody[1].y) > 1;
-		const bool tailThroughBorder = std::abs(tail.x - prevTail.x) > 1 
+		const bool tailThroughBorder = std::abs(tail.x - prevTail.x) > 1
 									|| std::abs(tail.y - prevTail.y) > 1;
 
 		/* ###### dynamic objects ###### */
@@ -364,7 +350,7 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 					vec2i from = prev - cur;
 					vec2i to = next - cur;
 
-					if (from.x < -1 || from.x > 1) 
+					if (from.x < -1 || from.x > 1)
 						from.x = from.x < -1 ? 1 : -1;
 					else if (from.y < -1 || from.y > 1)
 						from.y = from.y < -1 ? 1 : -1;
@@ -374,7 +360,7 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 					else if (to.y < -1 || to.y > 1)
 						to.y = to.y < -1 ? 1 : -1;
 
-					bool counterclockwise = (from == vec2i{ 1, 0 } && to == vec2i{ 0,-1 }) 
+					bool counterclockwise = (from == vec2i{ 1, 0 } && to == vec2i{ 0,-1 })
 										|| (from == vec2i{ 0, 1 } && to == vec2i{ 1, 0 })
 										|| (from == vec2i{-1, 0 } && to == vec2i{ 0, 1 })
 										|| (from == vec2i{ 0,-1 } && to == vec2i{-1, 0 });
@@ -407,7 +393,7 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 		bool drawTail = true;
 
 		data.color = snakeColor;
-		if (snakeMovingCoeff <= 0.5f) { 
+		if (snakeMovingCoeff <= 0.5f) {
 			data.size = cellSize;
 
 			vec2i prev = snakeSize > 2 ? snakeBody[2] : prevTail;
@@ -460,11 +446,11 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 					prev = game.snake().getPrevPrevTail();
 					cur = prevTail;
 					next = tail;
-				} 
+				}
 				else {
 					auxSnakeMovingCoeff = 0.f;
 					prev = prevTail;
-					cur = tail; 
+					cur = tail;
 					next = *(snakeBody.rbegin() + 1);
 				}
 
@@ -482,7 +468,7 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 				data.texType = TexType::SNAKE_BODY;
 				renderer.addObject(data);
 
-				// new step after turned tail -- little dynamic tail 
+				// new step after turned tail -- little dynamic tail
 				diff = cur - prev;
 				if (diff.x != 0) diff.x = (diff.x == -1 || diff.x > 1) ? -1 : 1;
 				else  			 diff.y = (diff.y == -1 || diff.y > 1) ? -1 : 1;
@@ -623,10 +609,10 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 
 		// eye places
 		if (!headThroughBorder)
-			renderer.addObject(data);		
+			renderer.addObject(data);
 		else
 			addThroughObjects(renderer, data, direction, fieldSize, true);
-		
+
 		data.pos = eye2Pos;
 		if (!headThroughBorder)
 			renderer.addObject(data);
@@ -670,14 +656,14 @@ void draw(Renderer& renderer, const Game& game, const Clock& clock) {
 		}
 
 		renderer.refreshStreamBuffer();
-	} 
+	}
 	else {
 		if (!isMenuStatus) {
 			isMenuStatus = true;
 			renderer.refreshDynamicBuffer();
 		}
-		data.color = (themeColor.x < 0.7f && themeColor.y < 0.7f && themeColor.z < 0.7f) 
-					? vec4f{ 1.f, 1.f, 1.f, 1.f} 
+		data.color = (themeColor.x < 0.7f && themeColor.y < 0.7f && themeColor.z < 0.7f)
+					? vec4f{ 1.f, 1.f, 1.f, 1.f}
 					: vec4f{0.f, 0.f, 0.f, 1.f };
 		data.size = 256.f * clock.getAppleBreathingCoeff();
 		data.pos = fieldSize * 0.5f;
@@ -700,7 +686,7 @@ float getRotateAngle(const vec2i v1, const vec2i v2) {
 }
 
 void cut(
-	vec2f& size, vec2f& pos, vec4f& texCoord, const vec2f fieldSize, 
+	vec2f& size, vec2f& pos, vec4f& texCoord, const vec2f fieldSize,
 	const bool enter, const bool forward, const bool horizontal
 ) {
 	float diff = 0.f;
@@ -767,7 +753,7 @@ void cut(
 }
 
 void addThroughObjects(
-	Renderer& renderer, const rectangleData& data, const vec2i direction, 
+	Renderer& renderer, const rectangleData& data, const vec2i direction,
 	const vec2f fieldSize, const bool forward
 ) {
 	const bool horizontal = direction.x != 0;
@@ -778,7 +764,7 @@ void addThroughObjects(
 
 	cut(_size, _pos, _texCoord, fieldSize, true, forward, horizontal);
 	renderer.addObject({
-		_size, _pos, data.color, _texCoord, 
+		_size, _pos, data.color, _texCoord,
 		data.texType, data.rotateAngle
 	});
 
@@ -788,12 +774,12 @@ void addThroughObjects(
 	else
 		_pos.y += fieldSize.y * (direction.y > 0 ? -1.f : 1.f);
 
-	_texCoord = forward ? vec4f{ 0.f, 0.f, 1.f, 0.f } 
+	_texCoord = forward ? vec4f{ 0.f, 0.f, 1.f, 0.f }
 						: vec4f{ 0.f, 1.f, 1.f, 1.f };
 	_size = data.size;
 	cut(_size, _pos, _texCoord, fieldSize, false, forward, horizontal);
 	renderer.addObject({
-		_size, _pos, data.color, _texCoord, 
+		_size, _pos, data.color, _texCoord,
 		data.texType, data.rotateAngle
-	});	
+	});
 }

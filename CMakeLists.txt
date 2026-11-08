@@ -35,6 +35,12 @@ target_sources(snake PRIVATE
     src/core/logger.cpp
 )
 
+target_include_directories(snake PRIVATE
+  ${CMAKE_SOURCE_DIR}
+  ${CMAKE_SOURCE_DIR}/external/glad/include
+  ${CMAKE_SOURCE_DIR}/external/glfw/include
+)
+
 # ===========================
 # GLAD
 # ===========================
