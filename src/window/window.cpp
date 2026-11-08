@@ -1,4 +1,4 @@
-#include "window.hpp" 
+#include "window.hpp"
 
 #include "../config/window_config.hpp"
 #include "../config/draw_config.hpp"
@@ -21,18 +21,18 @@ namespace {
         cursorPos *= scale;
         float halfSizeX = triggerZone.z * scale * 0.5f;
         float halfSizeY = triggerZone.w * scale * 0.5f;
-        
+
         float left = triggerZone.x - halfSizeX;
         float top = triggerZone.y - halfSizeY;
 
         return cursorPos.x >= left && cursorPos.x <= left + halfSizeX * 2.f
             && cursorPos.y >= top && cursorPos.y <= top + halfSizeY * 2.f;
     }
-    
+
     void mapKey() {
         for (int i = 0; i <= GLFW_KEY_LAST; ++i)
             keyMap[i] = Action::COUNT;
-        
+
         keyMap[GLFW_KEY_ESCAPE] = Action::Exit;
         keyMap[GLFW_KEY_P] = Action::Pause;
         keyMap[GLFW_KEY_SPACE] = Action::Space;
@@ -72,7 +72,7 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
             if (!self->_fullscreen) {
                 glfwGetWindowPos(self->_handle, &self->_windowParam.z, &self->_windowParam.w);
                 glfwSetWindowMonitor(
-                    window, glfwGetPrimaryMonitor(), 
+                    window, glfwGetPrimaryMonitor(),
                     0, 0, mode->width, mode->height,
                     mode->refreshRate
                 );
@@ -90,7 +90,7 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
 
         if (keyMap[key] == Action::COUNT)
             return;
-        
+
         self->inputManagerSetKey(keyMap[key], action, selfMods);
     }
 }
@@ -102,7 +102,7 @@ void Window::mouseButtonCallback(GLFWwindow* window, int button, int action, int
         glfwGetCursorPos(window, &x, &y);
         vec2f cursorPos = vec2f{ static_cast<float>(x), static_cast<float>(y) };
         vec4f triggerZone = vec4f{ self->_windowParam.x * 0.5f, self->_windowParam.y * 0.5f, 300.f, 300.f };
-        
+
         if (isCursorInTriggerZone(cursorPos, triggerZone, self->_windowScale * self->_contentScale)) {
             self->_buttonClicked = true;
             menuMode = false;
@@ -114,10 +114,10 @@ void Window::mouseButtonCallback(GLFWwindow* window, int button, int action, int
 
 void Window::cursorPosCallback(GLFWwindow *window, double xPos, double yPos) {
     Window* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
-    if (self && menuMode) {        
+    if (self && menuMode) {
         vec2f cursorPos = vec2f{ static_cast<float>(xPos), static_cast<float>(yPos) };
-        vec4f triggerZone = vec4f{ self->_windowParam.x * 0.5f, self->_windowParam.y * 0.5f, 300.f, 300.f };
-        
+        vec4f triggerZone = vec4f{ self->_windowParam.x * 0.5f, (self->_windowParam.y) * 0.5f + 85.f * self->_contentScale, 300.f, 300.f };
+
         bool inTriggerZone = isCursorInTriggerZone(cursorPos, triggerZone, self->_windowScale * self->_contentScale);
         if (inTriggerZone && !isHandCursor) {
             isHandCursor = true;
@@ -202,8 +202,8 @@ void Window::updateView() {
     }
 
     glfwSetWindowSizeLimits(
-        _handle, 
-        _viewSize.x, _viewSize.y, 
+        _handle,
+        _viewSize.x, _viewSize.y,
         GLFW_DONT_CARE, GLFW_DONT_CARE
     );
 
@@ -247,14 +247,14 @@ Window::Window()
     );
     if (!_handle) {
         Logger::getInstance().printError("Window", "window creation failed");
-        glfwTerminate(); 
+        glfwTerminate();
         exit(1);
     }
 
     glfwMakeContextCurrent(_handle);
     if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         Logger::getInstance().printError("Window", "OpenGL funcs initialization failed");
-        glfwTerminate(); 
+        glfwTerminate();
         exit(1);
     }
 
@@ -298,7 +298,7 @@ Window::Window()
 Window::~Window() {
     glfwDestroyCursor(_cursorHandle);
     glfwTerminate();
-    
+
     WindowConfig::fullscreen = _fullscreen;
     WindowConfig::windowWidth = _windowParam.x;
     WindowConfig::windowHeight = _windowParam.y;
@@ -331,4 +331,9 @@ void Window::showDetailedTitle(const bool show) {
         glfwSetCursor(_handle, nullptr);
         menuMode = true;
     }
+}
+
+void Window::setMenuMode(const bool isMenu) { 
+    menuMode = isMenu;
+    glfwSetCursor(_handle, nullptr);
 }

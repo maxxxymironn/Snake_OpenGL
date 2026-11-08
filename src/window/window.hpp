@@ -71,7 +71,6 @@ public:
     bool shouldClose();
         
     void pollEvents();
-
     void swapBuffers();
 
     void updateFPS(const int fps) { _fpsTitle = fps; _updateTitle = true; }
@@ -83,4 +82,5 @@ public:
         _buttonClicked = false; 
         return answer; 
     }
+    void setMenuMode(const bool isMenu);
 };

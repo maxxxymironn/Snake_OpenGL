@@ -168,10 +168,13 @@ void checkPressedKeys(Window& window, Renderer& renderer, Game& game, Clock& clo
 
 	else if (game.status() == GameStatus::MENU) {
 		if (inputManager.isKeyPressed(Action::Space) || window.isButtonClicked()) {
+		    window.setMenuMode(false);
+			window.updateScore(false);
+			window.showDetailedTitle(true);
+			
 			game.updateStatus(GameStatus::GAME_START);
 			game.reset();
-			window.showDetailedTitle(true);
-			window.updateScore(false);
+			
 			inputManager.turnOffBuffer();
 			clock.resetGameStepAccumulator();
 			clock.freezeSnake();
@@ -180,6 +183,7 @@ void checkPressedKeys(Window& window, Renderer& renderer, Game& game, Clock& clo
 
 	else if (game.status() != GameStatus::MENU) {
 		if (inputManager.isKeyPressed(Action::Pause)) {
+		    window.setMenuMode(true);
 			clock.updatePauseStatus();
 			inputManager.changeWorkStatus();
 		}
