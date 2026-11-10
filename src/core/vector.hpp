@@ -3,68 +3,90 @@
 template <typename T>
 struct vec2 {
     T x{}, y{};
-
+    
     vec2() = default;
-    vec2(T x): x(x), y(x) {}
+    constexpr vec2(T n): x(n), y(n) {}
     constexpr vec2(T x, T y): x(x), y(y) {}
     
     template <typename U>
     vec2(const vec2<U>& other)
         : x(static_cast<T>(other.x)),
-          y(static_cast<T>(other.y)) {}
-
+            y(static_cast<T>(other.y)) {}
+    
     bool operator==(const vec2& other) const {
         return this->x == other.x && this->y == other.y;
     }
-
+    
     bool operator!=(const vec2& other) const {
         return !(*this == other);
     }
-
+    
     template <typename U>
     vec2& operator=(const vec2<U>& other) {
         x = static_cast<T>(other.x);
         y = static_cast<T>(other.y);
         return *this;
     }
-
+    
     vec2& operator-=(const vec2& other) {
         this->x -= other.x;
         this->y -= other.y;
         return *this;
     }
-
+    
     vec2& operator+=(const vec2& other) {
         this->x += other.x;
         this->y += other.y;
         return *this;
     }
-
+    
     vec2& operator*=(const vec2& other) {
         this->x *= other.x;
         this->y *= other.y;
         return *this;
     }
-
+    
     vec2& operator/=(const vec2& other) {
         this->x /= other.x;
         this->y /= other.y;
         return *this;
     }
-
+    
     vec2& operator*=(const T& n) {
         this->x *= n;
         this->y *= n;
         return *this;
     }
-
+    
     vec2& operator/=(const T& n) {
         this->x /= n;
         this->y /= n;
         return *this;
     }
-
+    
     vec2 operator-() { return vec2(-x, -y); }
+};
+
+template <typename T>
+struct vec3 {
+    T x{}, y{}, z{};
+
+    vec3() = default;
+    vec3(const T n): x(n), y(n), z(n) {}
+    vec3(const T x, const T y, const T z): x(x), y(y), z(z) {}
+    
+    vec3(const vec3& other): x(other.x), y(other.y), z(other.z) {}
+    vec3(const vec2<T>& other, const T z): x(other.x), y(other.y), z(z) {}
+
+    vec3& operator=(const vec3& other) {
+        x = other.x;
+        y = other.y;
+        z = other.z;
+        return *this;
+    }
+
+    bool operator==(const vec3 other) { return x == other.x && y == other.y && z == other.z;}
+    bool operator!=(const vec3 other) { return !(this == other); }
 };
 
 template <typename T>
@@ -126,11 +148,6 @@ struct vec4 {
     }
 };
 
-// template <typename T>
-// inline bool operator==(const vec2<T>& left, const vec2<T>& right) {
-//     return left.x == right.x && left.y == right.y;
-// }
-
 template <typename T>
 inline vec2<T> operator-(vec2<T> lVec, const vec2<T>& rVec) {
     lVec -= rVec;
@@ -183,5 +200,7 @@ inline vec4<T> operator*(vec4<T> vec, const T& n) {
 
 using vec2i = vec2<int>;
 using vec2f = vec2<float>;
+using vec3i = vec3<int>;
+using vec3f = vec3<float>;
 using vec4i = vec4<int>;
 using vec4f = vec4<float>;

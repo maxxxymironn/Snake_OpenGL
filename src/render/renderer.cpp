@@ -179,8 +179,9 @@ void Renderer::init() {
     }
 
     glEnable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
+    
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 }
 
@@ -277,10 +278,10 @@ void Renderer::addObject(const rectangleData& data) {
     vec2f size = data.size * _contentScale * 0.5f;
     vec2f pos = data.pos * _contentScale;
     
-    vec2f lb = (getRotatedPoint({-size.x,-size.y }, data.rotateAngle) + pos + _origin) / _viewSize;
-    vec2f rb = (getRotatedPoint({ size.x,-size.y }, data.rotateAngle) + pos + _origin) / _viewSize;
-    vec2f rt = (getRotatedPoint({ size.x, size.y }, data.rotateAngle) + pos + _origin) / _viewSize;
-    vec2f lt = (getRotatedPoint({-size.x, size.y }, data.rotateAngle) + pos + _origin) / _viewSize;
+    vec3f lb{ (getRotatedPoint({-size.x,-size.y }, data.rotateAngle) + pos + _origin) / _viewSize, data.depth };
+    vec3f rb{ (getRotatedPoint({ size.x,-size.y }, data.rotateAngle) + pos + _origin) / _viewSize, data.depth };
+    vec3f rt{ (getRotatedPoint({ size.x, size.y }, data.rotateAngle) + pos + _origin) / _viewSize, data.depth };
+    vec3f lt{ (getRotatedPoint({-size.x, size.y }, data.rotateAngle) + pos + _origin) / _viewSize, data.depth };
 
     int layer = static_cast<int>(data.texType);
     _rectangleArray.push_back({
@@ -293,7 +294,7 @@ void Renderer::addObject(const rectangleData& data) {
 
 void Renderer::draw() {
     glUseProgram(_shaderProgram);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glBindVertexArray(_staticVAO);
     glDrawElements(GL_TRIANGLES, _staticDrawingIndices, GL_UNSIGNED_INT, 0);
