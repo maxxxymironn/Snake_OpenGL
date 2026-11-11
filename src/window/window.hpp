@@ -13,6 +13,7 @@ class Window {
 
     vec4i _windowParam;
     vec2i _bufferSize;
+    vec2i _rawViewSize;
     vec2i _viewSize;
     vec2i _fieldSize;
 
@@ -50,6 +51,7 @@ public:
     void setRefreshCallback(std::function<void()> fn) { refreshScreen = std::move(fn); }
 
     vec2i getViewSize() const { return _viewSize; }
+    vec2i getRawViewSize() const { return _rawViewSize; }
     float getContentScale() const { return _contentScale; }
 
     void updateFieldSize(const vec2i fieldCellSize) { _fieldSize = fieldCellSize * 40; updateView(); }
@@ -59,7 +61,7 @@ public:
             updateView();
         }
     }
-    void decreaseContentScaling() { 
+    void decreaseContentScaling() {
         if (_contentScale > 0.5f) {
             _contentScale -= 0.1f; 
             updateView(); 

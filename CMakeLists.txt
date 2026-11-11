@@ -33,6 +33,7 @@ target_sources(snake PRIVATE
     src/config/config_manager.cpp
     src/core/input_manager.cpp
     src/core/logger.cpp
+    src/core/drawer.cpp
 )
 
 target_include_directories(snake PRIVATE

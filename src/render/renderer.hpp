@@ -58,10 +58,10 @@ public:
 
     void draw();
 
-    void setViewSize(const vec2i viewSize) { 
+    void setViewSize(const vec2i viewSize) {
         _origin += _viewSize;
-        _viewSize = static_cast<vec2f>(viewSize) * 0.5f; 
-        _needRefreshStaticBuffer = true; 
+        _viewSize = static_cast<vec2f>(viewSize) * 0.5f;
+        _needRefreshStaticBuffer = true;
         _origin -= _viewSize;
     }
     void setContentScale(const float contentScale) { _contentScale = contentScale; }

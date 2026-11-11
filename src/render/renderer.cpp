@@ -72,26 +72,26 @@ namespace {
         // setting attributes
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(
-            0, sizeof(Vertex::pos) / sizeof(float), 
-            GL_FLOAT, GL_FALSE, 
+            0, sizeof(Vertex::pos) / sizeof(float),
+            GL_FLOAT, GL_FALSE,
             sizeof(Vertex), (void*)(offsetof(Vertex, pos))
         );
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(
-            1, sizeof(Vertex::texCoord) / sizeof(float), 
-            GL_FLOAT, GL_FALSE, 
+            1, sizeof(Vertex::texCoord) / sizeof(float),
+            GL_FLOAT, GL_FALSE,
             sizeof(Vertex), (void*)(offsetof(Vertex, texCoord))
         );
         glEnableVertexAttribArray(2);
         glVertexAttribPointer(
-            2, sizeof(Vertex::color) / sizeof(float), 
-            GL_FLOAT, GL_FALSE, 
+            2, sizeof(Vertex::color) / sizeof(float),
+            GL_FLOAT, GL_FALSE,
             sizeof(Vertex), (void*)(offsetof(Vertex, color))
         );
         glEnableVertexAttribArray(3);
         glVertexAttribIPointer(
-            3, 1, 
-            GL_INT, 
+            3, 1,
+            GL_INT,
             sizeof(Vertex), (void*)(offsetof(Vertex, texLayer))
         );
     }
@@ -118,7 +118,7 @@ void Renderer::init() {
         indices[i] = indices[i + 5] = offset;
         indices[i + 1] = offset + 1;
         indices[i + 2] = indices[i + 3] = offset + 2;
-        indices[i + 4] = offset + 3; 
+        indices[i + 4] = offset + 3;
     }
 
     glGenBuffers(1, &_ebo);
@@ -152,7 +152,7 @@ void Renderer::init() {
 
     glGenTextures(1, &_textureArray);
     glBindTexture(GL_TEXTURE_2D_ARRAY, _textureArray);
-    
+
     glUseProgram(_shaderProgram);
 
     glUniform1i(glGetUniformLocation(_shaderProgram, "uTexArray"), 0);
@@ -164,29 +164,29 @@ void Renderer::init() {
 
     glTexImage3D(
         GL_TEXTURE_2D_ARRAY, 0, GL_RGBA,
-        TEX_SIZE, TEX_SIZE, LAYER_COUNT, 
-        0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr 
+        TEX_SIZE, TEX_SIZE, LAYER_COUNT,
+        0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr
     );
 
     for (GLsizei layer = 0; layer < LAYER_COUNT; ++layer) {
         glTexSubImage3D(
             GL_TEXTURE_2D_ARRAY, 0,
-            0, 0, layer, 
+            0, 0, layer,
             TEX_SIZE, TEX_SIZE, 1,
-            GL_RGBA, GL_UNSIGNED_BYTE, 
+            GL_RGBA, GL_UNSIGNED_BYTE,
             TEX_DATA_ARRAY[layer]
         );
     }
 
     glEnable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
-    
+
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 }
 
 Renderer::Renderer()
-    : _shaderProgram(0), 
+    : _shaderProgram(0),
       _zenMode(DrawConfig::zenMode),
       _needRefreshStaticBuffer(false),
       _staticVAO(0), _staticVBO(0),
@@ -218,7 +218,7 @@ Renderer::~Renderer() {
 
     if (_streamVAO) glDeleteVertexArrays(1, &_streamVAO);
     if (_streamVBO) glDeleteBuffers(1, &_streamVBO);
-    
+
     if (_ebo) glDeleteBuffers(1, &_ebo);
     if (_shaderProgram) glDeleteProgram(_shaderProgram);
 }
@@ -227,7 +227,7 @@ void Renderer::refreshStaticBuffer() {
     glBindVertexArray(_staticVAO);
     glBindBuffer(GL_ARRAY_BUFFER, _staticVBO);
     glBufferSubData(
-        GL_ARRAY_BUFFER, 0, 
+        GL_ARRAY_BUFFER, 0,
         sizeof(Rectangle) * _rectangleArray.size(), _rectangleArray.data()
     );
     glBindVertexArray(0);
@@ -256,11 +256,11 @@ void Renderer::refreshStreamBuffer() {
     glBindVertexArray(_streamVAO);
     glBindBuffer(GL_ARRAY_BUFFER, _streamVBO);
     glBufferData(
-        GL_ARRAY_BUFFER, sizeof(Rectangle) * _drawingIndices, 
+        GL_ARRAY_BUFFER, sizeof(Rectangle) * _drawingIndices,
         nullptr, GL_STREAM_DRAW
     );
     glBufferSubData(
-        GL_ARRAY_BUFFER, 0, 
+        GL_ARRAY_BUFFER, 0,
         sizeof(Rectangle) * _rectangleArray.size(), _rectangleArray.data()
     );
     glBindVertexArray(0);
@@ -274,10 +274,10 @@ void Renderer::setClearColor(const vec4f color) { glClearColor(color.x, color.y,
 
 void Renderer::addObject(const rectangleData& data) {
     _drawingIndices += 6;
-    
-    vec2f size = data.size * _contentScale * 0.5f;
+
+    vec2f size = data.size * 0.5f * _contentScale;
     vec2f pos = data.pos * _contentScale;
-    
+
     vec3f lb{ (getRotatedPoint({-size.x,-size.y }, data.rotateAngle) + pos + _origin) / _viewSize, data.depth };
     vec3f rb{ (getRotatedPoint({ size.x,-size.y }, data.rotateAngle) + pos + _origin) / _viewSize, data.depth };
     vec3f rt{ (getRotatedPoint({ size.x, size.y }, data.rotateAngle) + pos + _origin) / _viewSize, data.depth };

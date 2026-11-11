@@ -101,7 +101,12 @@ void Window::mouseButtonCallback(GLFWwindow* window, int button, int action, int
         double x, y;
         glfwGetCursorPos(window, &x, &y);
         vec2f cursorPos = vec2f{ static_cast<float>(x), static_cast<float>(y) };
-        vec4f triggerZone = vec4f{ self->_windowParam.x * 0.5f, self->_windowParam.y * 0.5f, 300.f, 300.f };
+        vec4f triggerZone = vec4f{
+            self->_windowParam.x * 0.5f,
+            self->_windowParam.y * 0.5f + (self->_zenMode ? 0.f : 150.f * 0.5f),
+            300.f, 
+            300.f
+        };
 
         if (isCursorInTriggerZone(cursorPos, triggerZone, self->_windowScale * self->_contentScale)) {
             self->_buttonClicked = true;
@@ -183,17 +188,19 @@ void Window::setViewport() {
 
 void Window::updateView() {
     if (_zenMode) {
-        _viewSize = static_cast<vec2i>(static_cast<vec2f>(_fieldSize) * _contentScale);
+        _rawViewSize = _fieldSize;
+        _viewSize = static_cast<vec2f>(_rawViewSize) * _contentScale;
         _windowParam.x = _viewSize.x;
         _windowParam.y = _viewSize.y;
     }
     else {
         constexpr vec2i minViewSize = { 800, 1000 };
         constexpr int panelHeight = 200;
-        _viewSize = {
-            static_cast<int>(static_cast<float>((_fieldSize.x <= minViewSize.x ? minViewSize.x : _fieldSize.x) + 40) * _contentScale),
-            static_cast<int>(static_cast<float>((_fieldSize.y <= minViewSize.y - panelHeight ? minViewSize.y : _fieldSize.y + panelHeight) + 20) * _contentScale)
+        _rawViewSize = {
+            static_cast<int>(static_cast<float>((_fieldSize.x <= minViewSize.x ? minViewSize.x : _fieldSize.x) + 40)),
+            static_cast<int>(static_cast<float>((_fieldSize.y <= minViewSize.y - panelHeight ? minViewSize.y : _fieldSize.y + panelHeight) + 20))
         };
+        _viewSize = static_cast<vec2f>(_rawViewSize) * _contentScale;
 
         if (_windowParam.x < _viewSize.x)
             _windowParam.x = _viewSize.x;
@@ -213,19 +220,20 @@ void Window::updateView() {
 }
 
 Window::Window()
-    : _windowParam(WindowConfig::windowWidth, WindowConfig::windowHeight, 0, 0),
-      _bufferSize(WindowConfig::windowWidth, WindowConfig::windowHeight),
-      _viewSize(WindowConfig::windowWidth, WindowConfig::windowHeight),
-      _windowScale(1.f),
-      _contentScale(DrawConfig::contentScale),
-      _scoreTitle(-1),
-      _fpsTitle(0),
-      _fullscreen(WindowConfig::fullscreen),
-      _zenMode(DrawConfig::zenMode),
-      _updateTitle(false),
-      _showDetailedTitle(false),
-      _buttonClicked(false)
-    {
+    : _windowParam(WindowConfig::windowWidth, WindowConfig::windowHeight, 0, 0)
+    , _bufferSize(WindowConfig::windowWidth, WindowConfig::windowHeight)
+    , _rawViewSize(800, 1000)
+    , _viewSize(_rawViewSize)
+    , _windowScale(1.f)
+    , _contentScale(DrawConfig::contentScale)
+    , _scoreTitle(-1)
+    , _fpsTitle(0)
+    , _fullscreen(WindowConfig::fullscreen)
+    , _zenMode(DrawConfig::zenMode)
+    , _updateTitle(false)
+    , _showDetailedTitle(false)
+    , _buttonClicked(false)
+{
     if (!glfwInit()) {
         Logger::getInstance().printError("Window", "GLFW initialization failed");
         exit(1);
@@ -333,7 +341,7 @@ void Window::showDetailedTitle(const bool show) {
     }
 }
 
-void Window::setMenuMode(const bool isMenu) { 
+void Window::setMenuMode(const bool isMenu) {
     menuMode = isMenu;
     glfwSetCursor(_handle, nullptr);
 }
