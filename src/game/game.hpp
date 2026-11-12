@@ -1,6 +1,6 @@
 #pragma once
 #include "apple.hpp"
-#include "../core/vector.hpp"
+#include "src/core/vector.hpp"
 #include "enums.hpp"
 #include "field.hpp"
 #include "snake.hpp"
@@ -14,14 +14,19 @@ class Game {
     vec4f _themeColor;
 
     GameStatus m_status;
+    GameStatus _prevStatus;
     GameMode m_mode;
 
     int m_score;
+    int _bestScore;
 
     bool generateApple;
     bool _pravednovHead = false;
 
     bool checkLoose(vec2i& newHead);
+    
+    inline void _updateStatus(const GameStatus newStatus);
+    
 public:
     Game();
     ~Game();
@@ -31,6 +36,9 @@ public:
 
     vec4f getSnakeColor() const { return _snakeColor; }
     vec4f getThemeColor() const { return _themeColor; }
+
+    int getScore() const { return m_score; }
+    int getBestScore() const { return _bestScore; }
 
     const Apple& apple() const { return m_apple; }
     const Field& field() const { return m_field; }

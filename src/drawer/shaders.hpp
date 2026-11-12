@@ -1,5 +1,5 @@
 namespace shaders {
-    constexpr const char* vertexShaderSource = 
+    constexpr const char* vertexShaderSource =
 R"(#version 330 core
 
 layout (location = 0) in vec3 aPos;
@@ -19,7 +19,7 @@ void main() {
 }
 )";
 
-    constexpr const char* fragmentShaderSource = 
+    constexpr const char* fragmentShaderSource =
 R"(#version 330 core
 
 uniform sampler2DArray uTexArray;

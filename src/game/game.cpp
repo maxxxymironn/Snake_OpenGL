@@ -3,19 +3,21 @@
 #include "../config/game_config.hpp"
 #include "enums.hpp"
 
-bool checkHeadThroughWalls(const vec2i newHead, const vec2i fieldSize) {
-    return newHead.x == fieldSize.x || newHead.x == -1 || newHead.y == fieldSize.y || newHead.y == -1;
-}
-
-void correctNewHead(vec2i& newHead, const vec2i fieldSize) {
-    if (newHead.x == fieldSize.x)
-        newHead.x = 0;
-    else if (newHead.x == -1)
-        newHead.x = fieldSize.x - 1;
-    else if (newHead.y == fieldSize.y)
-        newHead.y = 0;
-    else
-        newHead.y = fieldSize.y - 1;
+namespace {
+    bool checkHeadThroughWalls(const vec2i newHead, const vec2i fieldSize) {
+        return newHead.x == fieldSize.x || newHead.x == -1 || newHead.y == fieldSize.y || newHead.y == -1;
+    }
+    
+    void correctNewHead(vec2i& newHead, const vec2i fieldSize) {
+        if (newHead.x == fieldSize.x)
+            newHead.x = 0;
+        else if (newHead.x == -1)
+            newHead.x = fieldSize.x - 1;
+        else if (newHead.y == fieldSize.y)
+            newHead.y = 0;
+        else
+            newHead.y = fieldSize.y - 1;
+    }
 }
 
 Game::Game()
@@ -28,8 +30,10 @@ Game::Game()
       _snakeColor(GameConfig::snakeColor),
       _themeColor(GameConfig::themeColor),
       m_status(GameStatus::MENU),
+      _prevStatus(m_status),
       m_mode(GameConfig::gameMode),
       m_score(0),
+      _bestScore(GameConfig::maxScore),
       generateApple(false)
         {
     for (const vec2i bodyEl : m_snake.getBody())
@@ -53,7 +57,7 @@ void Game::update() {
     }
 
     if (checkLoose(newHead)) {
-        m_status = GameStatus::LOOSE;
+        _updateStatus(GameStatus::LOOSE);
         m_snake.move(newHead);
         return;
     }
@@ -62,9 +66,11 @@ void Game::update() {
 
     if (newHead == m_apple.getPosition()) {
         ++m_score;
+        if (m_score > _bestScore)
+            _bestScore = m_score;
         m_snake.increase();
         if (m_field.getFreeCellsSize() == 0) {
-            m_status = GameStatus::WIN;
+            _updateStatus(GameStatus::WIN);
             return;
         }
         generateApple = true;
@@ -91,7 +97,7 @@ void Game::reset() {
     m_field.removeFreeCell(m_apple.getPosition());
 
     m_score = 0;
-    m_status = GameStatus::GAME_START;
+    _updateStatus(GameStatus::GAME_START);
 }
 
 bool Game::checkLoose(vec2i& newHead) {
@@ -113,11 +119,13 @@ bool Game::checkLoose(vec2i& newHead) {
     return false;
 }
 
-void Game::updateStatus(GameStatus status) {
-    if (status == GameStatus::GAME)
-        m_status = GameStatus::GAME;
-    else if (status == GameStatus::MENU)
-        m_status = GameStatus::MENU;
+void Game::updateStatus(const GameStatus status) {
+    // switch(status) {
+    //     case GameStatus::GAME: m_status = status; break;
+    //     case GameStatus::MENU: m_status = status; break;
+    //     default: break;
+    // }
+    _updateStatus(status);
 }
 
 void Game::saveStats() {
@@ -140,4 +148,9 @@ void Game::saveStats() {
 void Game::setDefaultHead() {
     _pravednovHead = false;
     _snakeColor = GameConfig::snakeColor;
+}
+
+inline void Game::_updateStatus(const GameStatus newStatus) {
+    _prevStatus = m_status;
+    m_status = newStatus;
 }

@@ -5,41 +5,29 @@
 #include "game/enums.hpp"
 #include "game/game.hpp"
 #include "game/snake.hpp"
-#include "render/renderer.hpp"
-#include "src/core/drawer.hpp"
+#include "drawer/drawer.hpp"
 #include "window/window.hpp"
 
-void checkPressedKeys(Window& window, Renderer& renderer, Drawer& drawer, Game& game, Clock& clock, InputManager& inputManager);
+void checkPressedKeys(Window& window, Drawer& drawer, Game& game, Clock& clock, InputManager& inputManager);
 
 void updateDir(Snake& snake, InputManager& inputManager);
-
-void draw(Renderer& renderer, const Game& game, const Clock& clock);
-
-float getRotateAngle(const vec2i v1, const vec2i v2);
-
-vec2f getThroughPos(vec2f position, const vec2i direction, const vec2f fieldSize);
 
 int main() {
     ConfigManager configManager;
     InputManager inputManager;
     Window window;
-    Renderer renderer;
-    if(!renderer.getInitializeInfo()) {
+    Drawer drawer;
+    if(!drawer.getRendererStatus()) {
         window.close();
         return -1;
     }
-    Drawer drawer(renderer);
     Game game;
     Clock clock;
 
     window.updateFieldSize(static_cast<vec2i>(game.field().getFieldSize()));
-    renderer.setContentScale(window.getContentScale());
-    renderer.setViewSize(window.getViewSize());
-    renderer.setClearColor(game.getThemeColor() - vec4f{0.1f, 0.1f, 0.1f, 0.f});
-
-    drawer.setSnakeColor(game.getSnakeColor());
-    drawer.setThemeColor(game.getThemeColor());
-    drawer.setViewSize(window.getRawViewSize());
+    drawer.updateSnakeColor(game.getSnakeColor());
+    drawer.updateThemeColor(game.getThemeColor());
+    drawer.updateViewSize(window.getRawViewSize());
 
     window.setInputManagerSetKey(
         [&inputManager](Action actionKey, bool isPressed, Mod mods) {
@@ -61,7 +49,7 @@ int main() {
 
         drawer.draw(game, clock);
 
-        checkPressedKeys(window, renderer, drawer, game, clock, inputManager);
+        checkPressedKeys(window, drawer, game, clock, inputManager);
 
         /* Logic part */
         if (!clock.isPauseTime()) {
@@ -133,7 +121,7 @@ int main() {
     return 0;
 }
 
-void checkPressedKeys(Window& window, Renderer& renderer, Drawer& drawer, Game& game, Clock& clock, InputManager& inputManager) {
+void checkPressedKeys(Window& window, Drawer& drawer, Game& game, Clock& clock, InputManager& inputManager) {
     if (inputManager.isKeyPressed(Action::Exit)) {
         if (game.status() == GameStatus::MENU)
             window.close();
@@ -148,21 +136,18 @@ void checkPressedKeys(Window& window, Renderer& renderer, Drawer& drawer, Game& 
 
     else if (inputManager.isKeyPressed(Action::ScaleUp)) {
         window.increaseContentScaling();
-        renderer.setContentScale(window.getContentScale());
-        renderer.setViewSize(window.getViewSize());
+        drawer.updateContentScale(window.getContentScale());
     }
 
     else if (inputManager.isKeyPressed(Action::ScaleDown)) {
         window.decreaseContentScaling();
-        renderer.setContentScale(window.getContentScale());
-        renderer.setViewSize(window.getViewSize());
+        drawer.updateContentScale(window.getContentScale());
     }
 
     else if (inputManager.isKeyPressed(Action::ZenMode)) {
         window.changeZenStatus();
-        renderer.changeZenMode();
-        renderer.setViewSize(window.getViewSize());
-        drawer.setViewSize(window.getRawViewSize());
+        drawer.updateZenMode(window.getZenMode());
+        drawer.updateViewSize(window.getRawViewSize());
     }
 
     else if (game.status() == GameStatus::MENU) {

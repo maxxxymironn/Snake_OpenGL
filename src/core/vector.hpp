@@ -96,7 +96,7 @@ struct vec4 {
     vec4() = default;
     vec4(T x): x(x), y(x), z(x), w(x) {}
     constexpr vec4(T x, T y, T z, T w): x(x), y(y), z(z), w(w) {}
-    vec4(const vec2<T>& v1, const vec2<T>& v2): x(v1.x), y(v2.y), z(v2.x), w(v2.y) {}
+    vec4(const vec2<T>& v1, const vec2<T>& v2): x(v1.x), y(v1.y), z(v2.x), w(v2.y) {}
 
     template <typename U>
     vec4(const vec4<U>& other)

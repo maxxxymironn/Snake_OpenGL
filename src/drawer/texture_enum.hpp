@@ -9,5 +9,7 @@ enum class TexType {
     EYE_ORBIT,
     EYE,
     PLAY,
-    PRAVEDNOV
+    PRAVEDNOV,
+    STAR,
+    ALPHABET
 };

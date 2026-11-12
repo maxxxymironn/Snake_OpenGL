@@ -1,6 +1,11 @@
 #include "drawer.hpp"
+
+#include "rectangle.hpp"
+#include "texture_enum.hpp"
+#include "src/config/draw_config.hpp"
 #include "src/game/enums.hpp"
-#include "src/render/texture_enum.hpp"
+
+#include <string>
 
 namespace {
     constexpr float PI = 3.14159265359f;
@@ -8,7 +13,7 @@ namespace {
 
     constexpr float cellSize = 40.f;
     constexpr vec2f panelSize = { 800.f, 160.f };
-    
+
     vec2f getThroughPos(vec2f position, const vec2i direction, const vec2f fieldSize) {
         if (direction.x != 0)
             position.x += fieldSize.x * (direction.x > 0 ? -1.f : 1.f);
@@ -25,55 +30,136 @@ namespace {
         else
             return diff.y == -1 || diff.y > 1 ? PI : 0.f;
     }
+
+    vec2f rotatePoint(const vec2f point, const float rotateAngle) {
+        return {
+            point.x * cosf(rotateAngle) - point.y * sinf(rotateAngle),
+            point.x * sinf(rotateAngle) + point.y * cosf(rotateAngle)
+        };
+    }
 }
 
-void Drawer::setSnakeColor(const vec4f color) { _snakeColor = color; }
+Drawer::Drawer()
+    : _zenMode(DrawConfig::zenMode)
+    , _updateStaticBuffer(true)
+    , _isPrevStatusMenu(true)
+    , _contentScale(DrawConfig::contentScale) {}
 
-void Drawer::setThemeColor(const vec4f color) {
+void Drawer::updateSnakeColor(const vec4f color) { _snakeColor = color; }
+
+void Drawer::updateThemeColor(const vec4f color) {
     _themeColor = color;
-    _auxThemeColor = color - 0.05f;
-    _auxThemeColor.w += 0.05f;
+    _auxThemeColor = { color.x - 0.05f, color.y - 0.05f, color.z - 0.05f, color.w };
+    _rendererHandler.setClearColor({ color.x - 0.1f, color.y - 0.1f, color.z - 0.1f, color.w });
 }
 
-void Drawer::setViewSize(const vec2f size) { _viewSize = size; }
+void Drawer::updateViewSize(const vec2f size) {
+    _viewSize = size;
+    _updateStaticBuffer = true;
+}
+
+void Drawer::updateZenMode(const bool zenMode) { _zenMode = zenMode; }
+
+void Drawer::updateContentScale(const float scaleCoeff) { _contentScale = scaleCoeff; }
+
+void Drawer::_add(const RectangleData& data) {
+    vec2f size = data.size * 0.5f * _contentScale;
+    vec2f pos = data.pos * _contentScale;
+
+    vec2f normViewSize = _viewSize * 0.5f * _contentScale;
+    vec2f normOrigin = _origin * _contentScale - normViewSize;
+
+    vec3f lb{ (rotatePoint({-size.x,-size.y }, data.rotateAngle) + pos + normOrigin) / normViewSize, data.depth };
+    vec3f rb{ (rotatePoint({ size.x,-size.y }, data.rotateAngle) + pos + normOrigin) / normViewSize, data.depth };
+    vec3f rt{ (rotatePoint({ size.x, size.y }, data.rotateAngle) + pos + normOrigin) / normViewSize, data.depth };
+    vec3f lt{ (rotatePoint({-size.x, size.y }, data.rotateAngle) + pos + normOrigin) / normViewSize, data.depth };
+
+    int layer = static_cast<int>(data.texType);
+    _rendererHandler.addObject({
+        { lb, {data.texCoord.x, data.texCoord.w}, data.color, layer },
+        { rb, {data.texCoord.z, data.texCoord.w}, data.color, layer },
+        { rt, {data.texCoord.z, data.texCoord.y}, data.color, layer },
+        { lt, {data.texCoord.x, data.texCoord.y}, data.color, layer }
+    });
+}
+
+void Drawer::_printText(const std::string& str) {
+    _data.texType = TexType::ALPHABET;
+    _data.size = { 16.f, 25.f };
+    _data.pos.y -= 5.f;
+
+    int x, y;
+    for (const char symbol : str) {
+        if (symbol != ' ') {
+            int shiftNum = symbol - 'A';
+            if (shiftNum < 0) {
+                constexpr int diffTo0 = 17;
+                constexpr int lettersNum = 26;
+
+                switch(symbol) {
+                    case '<': shiftNum -= 1; break;
+                    case '>': shiftNum -= 2; break;
+                    case '?': shiftNum -= 2; break;
+                    default: break;
+                }
+
+                shiftNum += diffTo0 + lettersNum;
+            }
+            y = shiftNum / 8;
+            x = shiftNum - y * 8;
+
+            constexpr vec2f texSymbolSize = { 0.125f, 0.1953f };
+            const vec2f texSymbolPos = texSymbolSize * static_cast<vec2f>(vec2i{ x + 1, y + 1 });
+            _data.texCoord = { texSymbolPos - texSymbolSize, texSymbolPos };
+            _add(_data);
+        }
+        _data.pos.x += _data.size.x;
+    }
+}
 
 void Drawer::draw(const Game& game, const Clock& clock) {
     const bool isMenuStatus = game.status() == GameStatus::MENU;
-    const bool isMenuStatusChanged = _isPrevStatusMenu == !isMenuStatus;
+    const bool isMenuStatusChanged = !_isPrevStatusMenu == isMenuStatus;
+    _updateStaticBuffer = _updateStaticBuffer || isMenuStatusChanged;
 
-    _rendererHandler->setOrigin({0.f, 0.f});
+    _origin = {0.f, 0.f};
     // render static object which here and there are
-    if (_rendererHandler->needRefreshStaticBuffer() || isMenuStatusChanged) {
-        if (!_rendererHandler->isZenMode())
-            addPanel();
+    if (_updateStaticBuffer) {
+        if (!_zenMode) {
+            _lbPanelPos = addPanel();
+        }
         if (isMenuStatus) {
-            _rendererHandler->refreshStaticBuffer();
-            _rendererHandler->refreshDynamicBuffer();
+            _updateStaticBuffer = false;
+            _rendererHandler.refreshStaticBuffer();
+            _rendererHandler.refreshDynamicBuffer();
         }
     }
+    _origin = {0.f, 0.f};
+
 
     if (isMenuStatus) {
         _isPrevStatusMenu = true;
 
         addPlayButton(clock.getAppleBreathingCoeff());
-        _rendererHandler->refreshStreamBuffer();
+        _rendererHandler.refreshStreamBuffer();
     }
     else {
         _isPrevStatusMenu = false;
 
-        if (_rendererHandler->needRefreshStaticBuffer() || isMenuStatusChanged) {
+        if (_updateStaticBuffer) {
             addField(game.field().getFieldSize());
             addInvisibleLines();
-            _rendererHandler->refreshStaticBuffer();
+            _rendererHandler.refreshStaticBuffer();
+            _updateStaticBuffer = false;
         }
-        _rendererHandler->setOrigin(_lbFieldPos - vec2f{ cellSize * 0.5f });
+        _origin = _lbFieldPos - vec2f{ cellSize * 0.5f };
 
         static bool straightLook = false;
 
         if (clock.getSnakeMovingCoeff() > 0.5f) {
             straightLook = false;
             addDynamicSnake(game.snake());
-            _rendererHandler->refreshDynamicBuffer();
+            _rendererHandler.refreshDynamicBuffer();
         }
 
         const bool eatingApple = game.snake().getHeadPos() == game.apple().getPosition();
@@ -82,13 +168,26 @@ void Drawer::draw(const Game& game, const Clock& clock) {
                        game.getPravednovBool(), game.apple().getPosition(), straightLook, clock.isBlinkTime());
         if (!(eatingApple && clock.getSnakeMovingCoeff() > 0.9f))
             addApple(game.apple().getPosition(), clock.getAppleBreathingCoeff());
-        _rendererHandler->refreshStreamBuffer();
+
+        if (!_zenMode) {
+            _origin = _lbPanelPos;
+            const char* mode = 
+                game.mode() == GameMode::DEFAULT 
+                    ? "DEFAULT"
+                    : (game.mode() == GameMode::THROUGH_WALLS 
+                        ? "THROUGH"
+                        : "BOUNDLESS");
+            addPanelIcons(clock.getPrevFrames(), game.getScore(), game.getBestScore(), 
+                          game.field().getFieldSize(), mode);
+        }
+
+        _rendererHandler.refreshStreamBuffer();
     }
 
-    _rendererHandler->draw();
+    _rendererHandler.draw();
 }
 
-void Drawer::addPanel() {
+vec2f Drawer::addPanel() {
     _data.size = panelSize;
     _data.pos = { _viewSize.x * 0.5f, _viewSize.y - _data.size.y * 0.5f - 20.f };
     _data.depth = 0.1f;
@@ -97,7 +196,74 @@ void Drawer::addPanel() {
     _data.texCoord = { 0.45f, 0.45f, 0.5f, 0.5f };
     _data.rotateAngle = 0.f;
 
-    _rendererHandler->addObject(_data);
+    _add(_data);
+
+    return _data.pos - _data.size * 0.5f;
+}
+
+void Drawer::addPanelIcons(const int fps, const int score, const int bestScore, 
+                           const vec2i fieldSize, const char* gameMode) {
+    _data.texCoord = { 0.f, 0.f, 1.f, 1.f };
+    _data.depth = 0.05f;
+    _data.rotateAngle = 0.f;
+
+    std::string toPrint;
+    const vec2f panelCenter = panelSize * 0.5f;
+
+    // ########## top line ##########
+    // field size
+    _data.size = cellSize;
+    _data.texType = TexType::FIELD;
+    _data.color = { 1.f, 1.f, 1.f, 1.f };
+    _data.pos = { panelCenter.x - panelSize.x * 0.5f + 40.f, panelCenter.y + 40.f };
+    _add(_data);
+
+    _data.pos.x += 40.f;
+    toPrint += std::to_string(fieldSize.x);
+    toPrint += ':';
+    toPrint += std::to_string(fieldSize.y);
+    _printText(toPrint);
+
+    // best score
+    _data.size = cellSize * 1.2;
+    _data.pos = { panelCenter.x - 40.f, panelCenter.y + 40.f };
+    _data.texType = TexType::STAR;
+    _data.texCoord = { 0.f, 0.f, 1.f, 1.f };
+    _data.color = { 1.f, 0.8f, 0.f, 1.f };
+    _add(_data);
+
+    _data.pos.x += 40.f;
+    _data.color = { 1.f, 1.f, 1.f, 1.f };
+    _printText(std::to_string(bestScore));
+
+    // menu button
+    _data.pos = { panelCenter.x + panelSize.x * 0.5f - 80.f, panelCenter.y + 40.f };
+    _printText("MENU");
+
+    // ########## bottom line ##########
+    // game mode
+    _data.pos = { panelCenter.x - panelSize.x * 0.5f + 28.f, panelCenter.y - 40.f };
+    toPrint = "MODE: ";
+    toPrint += gameMode;
+    _printText(toPrint);
+
+    // score
+    _data.size = cellSize;
+    _data.pos = { panelCenter.x - 40.f, panelCenter.y - 40.f };
+    _data.color = { 1.f, 1.f, 1.f, 1.f };
+    _data.texType = TexType::APPLE;
+    _data.texCoord = { 0.f, 0.f, 1.f, 1.f };
+    _add(_data);
+
+    _data.pos.x += 40.f;
+    _data.color = { 1.f, 1.f, 1.f, 1.f };
+    _printText(std::to_string(score));
+
+    // fps
+    _data.pos = { panelCenter.x + panelSize.x * 0.5f - 160.f, panelCenter.y - 40.f };
+    toPrint = "FPS: ";
+    toPrint += std::to_string(fps);
+    _printText(toPrint);
 }
 
 void Drawer::addField(const vec2i cellsNum) {
@@ -111,7 +277,7 @@ void Drawer::addField(const vec2i cellsNum) {
     _fieldSize = static_cast<vec2f>(cellsNum) * cellSize;
     _lbFieldPos = {
         (_viewSize.x - _fieldSize.x) * 0.5f + cellSize,
-        (_viewSize.y - _fieldSize.y - (!_rendererHandler->isZenMode() ? panelSize.y + 20.f : 0.f)) * 0.5f + cellSize
+        (_viewSize.y - _fieldSize.y - (!_zenMode ? panelSize.y + 20.f : 0.f)) * 0.5f + cellSize
     };
     vec2i fieldTexsNum = {
         cellsNum.x / 2 + cellsNum.x % 2,
@@ -121,7 +287,7 @@ void Drawer::addField(const vec2i cellsNum) {
     for (int x = 0; x < fieldTexsNum.x; ++x) {
         for (int y = 0; y < fieldTexsNum.y; ++y) {
             _data.pos = _lbFieldPos + static_cast<vec2f>(vec2i{x, y}) * _data.size;
-            _rendererHandler->addObject(_data);
+            _add(_data);
         }
     }
 }
@@ -141,9 +307,9 @@ void Drawer::addInvisibleLines() {
         fieldCenter.x - cellSize - (_fieldSize.x + cellSize) * 0.5f,
         fieldCenter.y - cellSize
     };
-    _rendererHandler->addObject(_data);
+    _add(_data);
     _data.pos.x += _fieldSize.x + cellSize;
-    _rendererHandler->addObject(_data);
+    _add(_data);
 
     // top & bottom lines
     _data.size = { _fieldSize.x + cellSize * 2.f, cellSize };
@@ -151,16 +317,16 @@ void Drawer::addInvisibleLines() {
         fieldCenter.x - cellSize,
         fieldCenter.y + (_fieldSize.y - cellSize) * 0.5f
     };
-    _rendererHandler->addObject(_data);
+    _add(_data);
     _data.pos.y -= _fieldSize.y + cellSize;
-    _rendererHandler->addObject(_data);
+    _add(_data);
 }
 
 void Drawer::addPlayButton(const float breathCoeff) {
     _data.size = 256.f * breathCoeff;
     _data.pos = {
         _viewSize.x * 0.5f,
-        (_viewSize.y - (!_rendererHandler->isZenMode() ? panelSize.y + 20.f : 0.f)) * 0.5f
+        (_viewSize.y - (!_zenMode ? panelSize.y + 20.f : 0.f)) * 0.5f
     };
     _data.depth = 0.9f;
     _data.color = (_themeColor.x < 0.7f && _themeColor.y < 0.7f && _themeColor.z < 0.7f)
@@ -170,7 +336,7 @@ void Drawer::addPlayButton(const float breathCoeff) {
     _data.texCoord = { 0.f, 0.f, 1.f, 1.f };
     _data.rotateAngle = 0.f;
 
-    _rendererHandler->addObject(_data);
+    _add(_data);
 }
 
 void Drawer::addApple(const vec2f position, const float breathCoeff) {
@@ -182,7 +348,7 @@ void Drawer::addApple(const vec2f position, const float breathCoeff) {
     _data.texCoord = { 0.f, 0.f, 1.f, 1.f };
     _data.rotateAngle = 0.f;
 
-    _rendererHandler->addObject(_data);
+    _add(_data);
 }
 
 void Drawer::addDynamicSnake(const Snake& snake) {
@@ -228,7 +394,7 @@ void Drawer::addDynamicSnake(const Snake& snake) {
             _data.texType = TexType::SNAKE_CORNER;
         }
 
-        _rendererHandler->addObject(_data);
+        _add(_data);
     }
 }
 
@@ -273,7 +439,7 @@ void Drawer::addStreamSnake(const Snake& snake, const float snakeMovingCoeff, co
             _data.texCoord = {0.f, -0.1f, 1.f, 0.9f };
             _data.rotateAngle = getRotateAngle(cur, prev);
             _data.texType = TexType::SNAKE_TAIL;
-            _rendererHandler->addObject(_data);
+            _add(_data);
 
             // dynamic head
             _data.pos = (static_cast<vec2f>(cur) + static_cast<vec2f>(direction) * 0.5f) * cellSize;
@@ -283,13 +449,13 @@ void Drawer::addStreamSnake(const Snake& snake, const float snakeMovingCoeff, co
             if (headThroughBorder) {
                 _data.pos = static_cast<vec2f>(head) * cellSize;
                 _data.texCoord = { 0.f, -1.f + snakeMovingCoeff, 1.f, snakeMovingCoeff };
-                _rendererHandler->addObject(_data);
+                _add(_data);
 
                 _data.pos = static_cast<vec2f>(snakeBody[1]) * cellSize + static_cast<vec2f>(direction) * cellSize * 0.25f;
                 _data.texCoord = { 0.f, 0.0f + snakeMovingCoeff, 1.f, 0.5f + snakeMovingCoeff};
                 _data.size = { cellSize, cellSize * 0.5f };
             }
-            _rendererHandler->addObject(_data);
+            _add(_data);
 
             drawHead = false;
         }
@@ -301,7 +467,7 @@ void Drawer::addStreamSnake(const Snake& snake, const float snakeMovingCoeff, co
             _data.size = { cellSize, cellSize * 0.5f };
             _data.texCoord = { 0.f, 0.f, 1.f, 0.5f };
             _data.texType = TexType::SNAKE_BODY;
-            _rendererHandler->addObject(_data);
+            _add(_data);
         }
 
         if (newTailDirection) {
@@ -325,13 +491,13 @@ void Drawer::addStreamSnake(const Snake& snake, const float snakeMovingCoeff, co
             _data.texCoord = {0.f, -0.1f, 1.f, 0.9f };
             _data.rotateAngle = getRotateAngle(cur, next);
             _data.texType = TexType::SNAKE_TAIL;
-            _rendererHandler->addObject(_data);
+            _add(_data);
 
             // aux static body to fill space between head and tail in 2sized snake
             _data.pos = static_cast<vec2f>(next) * cellSize;
             _data.texCoord = { 0.f, 0.5f, 1.f, 1.5f };
             _data.texType = TexType::SNAKE_BODY;
-            _rendererHandler->addObject(_data);
+            _add(_data);
 
             // new step after turned tail -- little dynamic tail
             diff = cur - prev;
@@ -341,7 +507,7 @@ void Drawer::addStreamSnake(const Snake& snake, const float snakeMovingCoeff, co
             _data.texCoord = {0.f, -0.5f - auxSnakeMovingCoeff, 1.f, 0.5f - auxSnakeMovingCoeff};
             _data.rotateAngle = getRotateAngle(prev, cur);
             _data.texType = TexType::SNAKE_TAIL;
-            _rendererHandler->addObject(_data);
+            _add(_data);
 
             drawTail = false;
             if (auxSnakeMovingCoeff > 0.1f)
@@ -364,7 +530,7 @@ void Drawer::addStreamSnake(const Snake& snake, const float snakeMovingCoeff, co
             _data.texCoord = {0.f, -0.1f, 1.f, 0.9f };
             _data.rotateAngle = getRotateAngle(cur, next);
             _data.texType = TexType::SNAKE_TAIL;
-            _rendererHandler->addObject(_data);
+            _add(_data);
 
             // dynamic tail
             diff = cur - prev;
@@ -379,13 +545,13 @@ void Drawer::addStreamSnake(const Snake& snake, const float snakeMovingCoeff, co
                 _data.texType = TexType::SNAKE_TAIL;
                 _data.pos = static_cast<vec2f>(prevTail) * cellSize;
                 _data.texCoord = { 0.f, -snakeMovingCoeff , 1.f, 1.f - snakeMovingCoeff};
-                _rendererHandler->addObject(_data);
+                _add(_data);
 
                 _data.pos = static_cast<vec2f>(tail) * cellSize - static_cast<vec2f>(diff) * cellSize * 0.25f;
                 _data.texCoord = { 0.f, 1.f - snakeMovingCoeff, 1.f, 1.5f - snakeMovingCoeff };
                 _data.size = { cellSize, cellSize * 0.5f };
             }
-            _rendererHandler->addObject(_data);
+            _add(_data);
 
             drawTail = false;
             newTailDirection = true;
@@ -402,7 +568,7 @@ void Drawer::addStreamSnake(const Snake& snake, const float snakeMovingCoeff, co
             _data.texCoord = { 0.f, 0.f, 1.f, 0.5f };
             _data.rotateAngle = getRotateAngle(cur, next);
             _data.texType = TexType::SNAKE_BODY;
-            _rendererHandler->addObject(_data);
+            _add(_data);
         }
     }
 
@@ -416,10 +582,10 @@ void Drawer::addStreamSnake(const Snake& snake, const float snakeMovingCoeff, co
         vec2f alpha = static_cast<vec2f>(direction) * snakeMovingCoeff;
         _data.pos = (static_cast<vec2f>(snakeBody[1]) + alpha) * cellSize;
 
-        _rendererHandler->addObject(_data);
+        _add(_data);
         if (headThroughBorder) {
             _data.pos = getThroughPos(_data.pos, direction, _fieldSize);
-            _rendererHandler->addObject(_data);
+            _add(_data);
         }
     }
 
@@ -441,10 +607,10 @@ void Drawer::addStreamSnake(const Snake& snake, const float snakeMovingCoeff, co
         if (eatingApple)
             _data.pos = static_cast<vec2f>(tail) * cellSize;
 
-        _rendererHandler->addObject(_data);
+        _add(_data);
         if (tailThroughBorder) {
             _data.pos = getThroughPos(_data.pos, diff, _fieldSize);
-            _rendererHandler->addObject(_data);
+            _add(_data);
         }
     }
 
@@ -478,21 +644,21 @@ void Drawer::addStreamSnake(const Snake& snake, const float snakeMovingCoeff, co
         // eye places
         if (!headThroughBorder) {
             _data.depth = 0.2f;
-            _rendererHandler->addObject(_data);
+            _add(_data);
             _data.pos = eye2Pos;
-            _rendererHandler->addObject(_data);
+            _add(_data);
         }
         else {
             _data.depth = 0.55f;
 
-            _rendererHandler->addObject(_data);
+            _add(_data);
             _data.pos = getThroughPos(_data.pos, direction, _fieldSize);
-            _rendererHandler->addObject(_data);
+            _add(_data);
 
             _data.pos = eye2Pos;
-            _rendererHandler->addObject(_data);
+            _add(_data);
             _data.pos = getThroughPos(_data.pos, direction, _fieldSize);
-            _rendererHandler->addObject(_data);
+            _add(_data);
         }
 
         if (!(headThroughBorder && snakeMovingCoeff > 0.6f) && !isBlinkTime) {
@@ -512,14 +678,14 @@ void Drawer::addStreamSnake(const Snake& snake, const float snakeMovingCoeff, co
             _data.size = eyeSize;
 
             _data.pos = eye1Pos;
-            _rendererHandler->addObject(_data);
+            _add(_data);
             _data.pos = eye2Pos;
-            _rendererHandler->addObject(_data);
+            _add(_data);
         }
     }
     // ---------- pravednov head ----------
     else {
-        _data.size = 80.f;
+        _data.size = 50.f;
         _data.depth = 0.35f;
         _data.color = {1.f, 1.f, 1.f, 1.f};
         _data.texType = TexType::PRAVEDNOV;
@@ -530,10 +696,10 @@ void Drawer::addStreamSnake(const Snake& snake, const float snakeMovingCoeff, co
 
         if (headThroughBorder) {
             _data.depth = 0.55f;
-            _data.pos = getThroughPos(_data.pos, direction, _fieldSize);
-            _rendererHandler->addObject(_data);
+            _data.pos = getThroughPos(eyePos, direction, _fieldSize);
+            _add(_data);
         }
         _data.pos = eyePos;
-        _rendererHandler->addObject(_data);
+        _add(_data);
     }
 }

@@ -1,6 +1,6 @@
 #pragma once
-#include "vector.hpp"
-#include "../render/texture_enum.hpp"
+#include "src/core/vector.hpp"
+#include "texture_enum.hpp"
 
 struct Vertex {
     vec3f pos;
@@ -16,7 +16,7 @@ struct Rectangle {
     Vertex lt;
 };
 
-struct rectangleData {
+struct RectangleData {
     vec2f size;
     vec2f pos;
     float depth;
@@ -25,8 +25,8 @@ struct rectangleData {
     TexType texType;
     float rotateAngle;
 
-    rectangleData() = default;
-    rectangleData(
+    RectangleData() = default;
+    RectangleData(
         vec2f size, vec2f pos, float depth, vec4f color, vec4f texCoord, 
         TexType texType, float rotateAngle
     ) : size(size), pos(pos), depth(depth), color(color), texCoord(texCoord),

@@ -53,6 +53,7 @@ public:
     vec2i getViewSize() const { return _viewSize; }
     vec2i getRawViewSize() const { return _rawViewSize; }
     float getContentScale() const { return _contentScale; }
+    bool getZenMode() const { return _zenMode; }
 
     void updateFieldSize(const vec2i fieldCellSize) { _fieldSize = fieldCellSize * 40; updateView(); }
     void increaseContentScaling() {

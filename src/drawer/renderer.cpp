@@ -1,24 +1,24 @@
 #include "renderer.hpp"
 
-#include "../../resources/textures/apple.hpp"
-#include "../../resources/textures/body.hpp"
-#include "../../resources/textures/corner.hpp"
-#include "../../resources/textures/field.hpp"
-#include "../../resources/textures/tail.hpp"
-#include "../../resources/textures/eye_orbit.hpp"
-#include "../../resources/textures/eye.hpp"
-#include "../../resources/textures/play.hpp"
-#include "../../resources/textures/pravednov.hpp"
+#include "resources/textures/apple.hpp"
+#include "resources/textures/body.hpp"
+#include "resources/textures/corner.hpp"
+#include "resources/textures/field.hpp"
+#include "resources/textures/tail.hpp"
+#include "resources/textures/eye_orbit.hpp"
+#include "resources/textures/eye.hpp"
+#include "resources/textures/play.hpp"
+#include "resources/textures/pravednov.hpp"
+#include "resources/textures/star.hpp"
+#include "resources/textures/alphabet.hpp"
 
-#include "../config/draw_config.hpp"
-#include "../core/rectangle.hpp"
+#include "rectangle.hpp"
 #include "../core/logger.hpp"
 #include "shaders.hpp"
 
 #include <glad/glad.h>
 
 #include <cstddef>
-#include <cmath>
 
 namespace {
     GLuint createShader(GLenum typeShader, const char* shaderSource) {
@@ -95,13 +95,6 @@ namespace {
             sizeof(Vertex), (void*)(offsetof(Vertex, texLayer))
         );
     }
-
-    vec2f getRotatedPoint(const vec2f point, const float rotateAngle) {
-        return {
-            point.x * cosf(rotateAngle) - point.y * sinf(rotateAngle),
-            point.x * sinf(rotateAngle) + point.y * cosf(rotateAngle)
-        };
-    }
 }
 
 void Renderer::init() {
@@ -137,7 +130,7 @@ void Renderer::init() {
 
     // setting textures
     constexpr GLsizei TEX_SIZE = 128;
-    constexpr GLsizei LAYER_COUNT = 9;
+    constexpr GLsizei LAYER_COUNT = 11;
     constexpr const unsigned char* TEX_DATA_ARRAY[LAYER_COUNT] = {
         &field[0],
         &apple[0],
@@ -147,7 +140,9 @@ void Renderer::init() {
         &eye_orbit[0],
         &eye[0],
         &play[0],
-        &pravednov[0]
+        &pravednov[0],
+        &star[0],
+        &alphabet[0]
     };
 
     glGenTextures(1, &_textureArray);
@@ -187,18 +182,14 @@ void Renderer::init() {
 
 Renderer::Renderer()
     : _shaderProgram(0),
-      _zenMode(DrawConfig::zenMode),
-      _needRefreshStaticBuffer(false),
       _staticVAO(0), _staticVBO(0),
       _dynamicVAO(0), _dynamicVBO(0),
       _streamVAO(0), _streamVBO(0),
       _drawingIndices(0),
       _staticDrawingIndices(0),
       _dynamicDrawingIndices(0),
-      _streamDrawingIndices(0),
-      _origin(0.f, 0.f),
-      _contentScale(DrawConfig::contentScale)
-        {
+      _streamDrawingIndices(0)
+{
     GLuint vertexShader = createShader(GL_VERTEX_SHADER, shaders::vertexShaderSource);
     GLuint fragmentShader = createShader(GL_FRAGMENT_SHADER, shaders::fragmentShaderSource);
 
@@ -235,7 +226,6 @@ void Renderer::refreshStaticBuffer() {
     _rectangleArray.clear();
     _staticDrawingIndices = _drawingIndices;
     _drawingIndices = 0;
-    _needRefreshStaticBuffer = false;
 }
 
 void Renderer::refreshDynamicBuffer() {
@@ -272,24 +262,9 @@ void Renderer::refreshStreamBuffer() {
 
 void Renderer::setClearColor(const vec4f color) { glClearColor(color.x, color.y, color.z, color.w); }
 
-void Renderer::addObject(const rectangleData& data) {
+void Renderer::addObject(const Rectangle& rect) {
     _drawingIndices += 6;
-
-    vec2f size = data.size * 0.5f * _contentScale;
-    vec2f pos = data.pos * _contentScale;
-
-    vec3f lb{ (getRotatedPoint({-size.x,-size.y }, data.rotateAngle) + pos + _origin) / _viewSize, data.depth };
-    vec3f rb{ (getRotatedPoint({ size.x,-size.y }, data.rotateAngle) + pos + _origin) / _viewSize, data.depth };
-    vec3f rt{ (getRotatedPoint({ size.x, size.y }, data.rotateAngle) + pos + _origin) / _viewSize, data.depth };
-    vec3f lt{ (getRotatedPoint({-size.x, size.y }, data.rotateAngle) + pos + _origin) / _viewSize, data.depth };
-
-    int layer = static_cast<int>(data.texType);
-    _rectangleArray.push_back({
-        { lb, {data.texCoord.x, data.texCoord.w}, data.color, layer },
-        { rb, {data.texCoord.z, data.texCoord.w}, data.color, layer },
-        { rt, {data.texCoord.z, data.texCoord.y}, data.color, layer },
-        { lt, {data.texCoord.x, data.texCoord.y}, data.color, layer }
-    });
+    _rectangleArray.emplace_back(rect);
 }
 
 void Renderer::draw() {

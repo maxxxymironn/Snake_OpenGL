@@ -25,7 +25,8 @@ endif()
 target_sources(snake PRIVATE
     src/main.cpp
     src/window/window.cpp
-    src/render/renderer.cpp
+    src/drawer/renderer.cpp
+    src/drawer/drawer.cpp
     src/game/game.cpp
     src/game/field.cpp
     src/game/apple.cpp
@@ -33,7 +34,6 @@ target_sources(snake PRIVATE
     src/config/config_manager.cpp
     src/core/input_manager.cpp
     src/core/logger.cpp
-    src/core/drawer.cpp
 )
 
 target_include_directories(snake PRIVATE
