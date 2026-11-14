@@ -21,22 +21,22 @@ class Drawer {
 
       bool getRendererStatus() { return _rendererHandler.getInitializeInfo(); }
 
+      void changePravednovStatus();
+
       void draw(const Game& game, const Clock& clock);
   private:
       Renderer _rendererHandler;
-
       RectangleData _data;
 
       bool _zenMode;
       bool _updateStaticBuffer;
       bool _isPrevStatusMenu;
+      bool _isPravednovHead;
 
       float _contentScale;
       vec2f _origin;
       vec2f _viewSize;
 
-      
-      
       vec2f _fieldSize;
       vec2f _lbFieldPos;
       vec2f _lbPanelPos;
@@ -53,7 +53,7 @@ class Drawer {
       void addApple(const vec2f position, const float breathCoeff);
       void addDynamicSnake(const Snake& snake);
       void addStreamSnake(const Snake& snake, const float snakeMovingCoeff, const bool eatingApple, 
-                          const bool pravednovFace, const vec2i applePos, bool& straightLook, const bool isBlinkTime);
+                          const vec2i applePos, bool& straightLook, const bool isBlinkTime);
       void addPlayButton(const float breathCoeff);
 
       void _printText(const std::string& str);

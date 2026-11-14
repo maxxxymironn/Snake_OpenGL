@@ -43,7 +43,11 @@ Drawer::Drawer()
     : _zenMode(DrawConfig::zenMode)
     , _updateStaticBuffer(true)
     , _isPrevStatusMenu(true)
-    , _contentScale(DrawConfig::contentScale) {}
+    , _isPravednovHead(false)
+    , _contentScale(DrawConfig::contentScale)
+    , _themeColor(DrawConfig::themeColor)
+    , _auxThemeColor({ _themeColor.x - 0.05f, _themeColor.y - 0.05f, _themeColor.z - 0.05f, _themeColor.w })
+    , _snakeColor(DrawConfig::snakeColor) {}
 
 void Drawer::updateSnakeColor(const vec4f color) { _snakeColor = color; }
 
@@ -83,38 +87,10 @@ void Drawer::_add(const RectangleData& data) {
     });
 }
 
-void Drawer::_printText(const std::string& str) {
-    _data.texType = TexType::ALPHABET;
-    _data.size = { 16.f, 25.f };
-    _data.pos.y -= 5.f;
-
-    int x, y;
-    for (const char symbol : str) {
-        if (symbol != ' ') {
-            int shiftNum = symbol - 'A';
-            if (shiftNum < 0) {
-                constexpr int diffTo0 = 17;
-                constexpr int lettersNum = 26;
-
-                switch(symbol) {
-                    case '<': shiftNum -= 1; break;
-                    case '>': shiftNum -= 2; break;
-                    case '?': shiftNum -= 2; break;
-                    default: break;
-                }
-
-                shiftNum += diffTo0 + lettersNum;
-            }
-            y = shiftNum / 8;
-            x = shiftNum - y * 8;
-
-            constexpr vec2f texSymbolSize = { 0.125f, 0.1953f };
-            const vec2f texSymbolPos = texSymbolSize * static_cast<vec2f>(vec2i{ x + 1, y + 1 });
-            _data.texCoord = { texSymbolPos - texSymbolSize, texSymbolPos };
-            _add(_data);
-        }
-        _data.pos.x += _data.size.x;
-    }
+void Drawer::changePravednovStatus() {
+    _isPravednovHead = !_isPravednovHead;
+    _snakeColor = _isPravednovHead ? vec4f{ 0.74f, 0.58f, 0.62f, 1.f }
+                                   : DrawConfig::snakeColor;
 }
 
 void Drawer::draw(const Game& game, const Clock& clock) {
@@ -147,7 +123,7 @@ void Drawer::draw(const Game& game, const Clock& clock) {
         _isPrevStatusMenu = false;
 
         if (_updateStaticBuffer) {
-            addField(game.field().getFieldSize());
+            addField(game.field().size());
             addInvisibleLines();
             _rendererHandler.refreshStaticBuffer();
             _updateStaticBuffer = false;
@@ -164,21 +140,25 @@ void Drawer::draw(const Game& game, const Clock& clock) {
 
         const bool eatingApple = game.snake().getHeadPos() == game.apple().getPosition();
 
+        const vec2i applePos = game.apple().getPosition().has_value()
+            ? game.apple().getPosition().value()
+            : game.snake().getHeadPos();
+
         addStreamSnake(game.snake(), clock.getSnakeMovingCoeff(), eatingApple,
-                       game.getPravednovBool(), game.apple().getPosition(), straightLook, clock.isBlinkTime());
-        if (!(eatingApple && clock.getSnakeMovingCoeff() > 0.9f))
-            addApple(game.apple().getPosition(), clock.getAppleBreathingCoeff());
+                       applePos, straightLook, clock.isBlinkTime());
+        if (!(eatingApple && clock.getSnakeMovingCoeff() > 0.9f) && game.apple().getPosition().has_value())
+            addApple(game.apple().getPosition().value(), clock.getAppleBreathingCoeff());
 
         if (!_zenMode) {
             _origin = _lbPanelPos;
-            const char* mode = 
-                game.mode() == GameMode::DEFAULT 
+            const char* mode =
+                game.mode() == GameMode::DEFAULT
                     ? "DEFAULT"
-                    : (game.mode() == GameMode::THROUGH_WALLS 
+                    : (game.mode() == GameMode::THROUGH_WALLS
                         ? "THROUGH"
                         : "BOUNDLESS");
-            addPanelIcons(clock.getPrevFrames(), game.getScore(), game.getBestScore(), 
-                          game.field().getFieldSize(), mode);
+            addPanelIcons(clock.getPrevFrames(), game.getScore(), game.getBestScore(),
+                          game.field().size(), mode);
         }
 
         _rendererHandler.refreshStreamBuffer();
@@ -201,7 +181,7 @@ vec2f Drawer::addPanel() {
     return _data.pos - _data.size * 0.5f;
 }
 
-void Drawer::addPanelIcons(const int fps, const int score, const int bestScore, 
+void Drawer::addPanelIcons(const int fps, const int score, const int bestScore,
                            const vec2i fieldSize, const char* gameMode) {
     _data.texCoord = { 0.f, 0.f, 1.f, 1.f };
     _data.depth = 0.05f;
@@ -399,7 +379,7 @@ void Drawer::addDynamicSnake(const Snake& snake) {
 }
 
 void Drawer::addStreamSnake(const Snake& snake, const float snakeMovingCoeff, const bool eatingApple,
-                            const bool pravednovFace, const vec2i applePos, bool& straightLook, const bool isBlinkTime) {
+                            const vec2i applePos, bool& straightLook, const bool isBlinkTime) {
     _data.size = cellSize;
     _data.depth = 0.6f;
     _data.color = _snakeColor;
@@ -618,7 +598,7 @@ void Drawer::addStreamSnake(const Snake& snake, const float snakeMovingCoeff, co
     const vec2f alpha = static_cast<vec2f>(direction) * snakeMovingCoeff;
     const vec2f eyePos = (static_cast<vec2f>(snakeBody[1]) + alpha) * cellSize;
 
-    if (!pravednovFace) {
+    if (!_isPravednovHead) {
         const vec2f eyePlaceSize = cellSize * 0.45f;
         vec2f eye1Pos = eyePos;
         vec2f eye2Pos = eyePos;
@@ -701,5 +681,39 @@ void Drawer::addStreamSnake(const Snake& snake, const float snakeMovingCoeff, co
         }
         _data.pos = eyePos;
         _add(_data);
+    }
+}
+
+void Drawer::_printText(const std::string& str) {
+    _data.texType = TexType::ALPHABET;
+    _data.size = { 16.f, 25.f };
+    _data.pos.y -= 5.f;
+
+    int x, y;
+    for (const char symbol : str) {
+        if (symbol != ' ') {
+            int shiftNum = symbol - 'A';
+            if (shiftNum < 0) {
+                constexpr int diffTo0 = 17;
+                constexpr int lettersNum = 26;
+
+                switch(symbol) {
+                    case '<': shiftNum -= 1; break;
+                    case '>': shiftNum -= 2; break;
+                    case '?': shiftNum -= 2; break;
+                    default: break;
+                }
+
+                shiftNum += diffTo0 + lettersNum;
+            }
+            y = shiftNum / 8;
+            x = shiftNum - y * 8;
+
+            constexpr vec2f texSymbolSize = { 0.125f, 0.1953f };
+            const vec2f texSymbolPos = texSymbolSize * static_cast<vec2f>(vec2i{ x + 1, y + 1 });
+            _data.texCoord = { texSymbolPos - texSymbolSize, texSymbolPos };
+            _add(_data);
+        }
+        _data.pos.x += _data.size.x;
     }
 }

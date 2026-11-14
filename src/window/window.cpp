@@ -175,11 +175,6 @@ void Window::errorCallback(const int error_code, const char *description) {
     Logger::getInstance().printError("WINDOW", strDescription.c_str());
 }
 
-void Window::setTitle() {
-    std::string title = "Score: " + std::to_string(_scoreTitle) + " | FPS: " + std::to_string(_fpsTitle);
-    glfwSetWindowTitle(_handle, title.c_str());
-}
-
 void Window::setViewport() {
     vec2i pos = (_bufferSize - static_cast<vec2i>(static_cast<vec2f>(_viewSize) * _windowScale )) / 2;
     vec2i size = static_cast<vec2i>(static_cast<vec2f>(_viewSize) * _windowScale);
@@ -226,12 +221,8 @@ Window::Window()
     , _viewSize(_rawViewSize)
     , _windowScale(1.f)
     , _contentScale(DrawConfig::contentScale)
-    , _scoreTitle(-1)
-    , _fpsTitle(0)
     , _fullscreen(WindowConfig::fullscreen)
     , _zenMode(DrawConfig::zenMode)
-    , _updateTitle(false)
-    , _showDetailedTitle(false)
     , _buttonClicked(false)
 {
     if (!glfwInit()) {
@@ -317,31 +308,13 @@ Window::~Window() {
 void Window::close() const { glfwSetWindowShouldClose(_handle, GLFW_TRUE); }
 bool Window::shouldClose() { return static_cast<bool>(glfwWindowShouldClose(_handle)); }
 
-void Window::pollEvents() {
+void Window::endFrame() {
+    glfwSwapBuffers(_handle);
     glfwPollEvents();
-    if (_updateTitle && _showDetailedTitle) {
-        setTitle();
-        _updateTitle = false;
-    }
-}
-
-void Window::swapBuffers() { glfwSwapBuffers(_handle); }
-
-void Window::updateScore(const bool toIncrement) {
-    _scoreTitle = toIncrement ? _scoreTitle + 1 : -1;
-    _updateTitle = true;
-}
-
-void Window::showDetailedTitle(const bool show) {
-    _showDetailedTitle = show;
-    if (!show) {
-        glfwSetWindowTitle(_handle, "Snake");
-        glfwSetCursor(_handle, nullptr);
-        menuMode = true;
-    }
 }
 
 void Window::setMenuMode(const bool isMenu) {
     menuMode = isMenu;
-    glfwSetCursor(_handle, nullptr);
+    if (isMenu)
+        glfwSetCursor(_handle, nullptr);
 }

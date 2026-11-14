@@ -19,13 +19,9 @@ class Window {
 
     float _windowScale;
     float _contentScale;
-    int _scoreTitle;
-    int _fpsTitle;
 
     bool _fullscreen;
     bool _zenMode;
-    bool _updateTitle;
-    bool _showDetailedTitle;
     bool _buttonClicked;
 
     std::function<void(Action key, bool isPressed, Mod mods)> inputManagerSetKey;
@@ -72,13 +68,8 @@ public:
 
     void close() const;
     bool shouldClose();
-        
-    void pollEvents();
-    void swapBuffers();
 
-    void updateFPS(const int fps) { _fpsTitle = fps; _updateTitle = true; }
-    void updateScore(const bool toIncrement=true);
-    void showDetailedTitle(const bool show);
+    void endFrame();
 
     bool isButtonClicked() { 
         bool answer = _buttonClicked; 

@@ -24,9 +24,7 @@ int main() {
     Game game;
     Clock clock;
 
-    window.updateFieldSize(static_cast<vec2i>(game.field().getFieldSize()));
-    drawer.updateSnakeColor(game.getSnakeColor());
-    drawer.updateThemeColor(game.getThemeColor());
+    window.updateFieldSize(static_cast<vec2i>(game.field().size()));
     drawer.updateViewSize(window.getRawViewSize());
 
     window.setInputManagerSetKey(
@@ -43,15 +41,11 @@ int main() {
     clock.start();
     while(!window.shouldClose()) {
         clock.calculate();
-
-        if (clock.updateFPS())
-            window.updateFPS(clock.getPrevFrames());
-
-        drawer.draw(game, clock);
+        clock.updateFPS();
 
         checkPressedKeys(window, drawer, game, clock, inputManager);
+        drawer.draw(game, clock);
 
-        /* Logic part */
         if (!clock.isPauseTime()) {
             if (game.status() == GameStatus::GAME) {
                 while(clock.isUpdateTime()) {
@@ -59,11 +53,6 @@ int main() {
                     game.update();
 
                     clock.updateGameStepAccumulator();
-
-                    if (game.apple().isNew()) {
-                        window.updateScore();
-                        game.apple().setOld();
-                    }
                 }
             }
             else if (game.status() == GameStatus::LOOSE) {
@@ -76,7 +65,7 @@ int main() {
                 }
                 if (clock.isUpdateTime(3.f)) {
                     game.reset();
-                    window.updateScore(false);
+                    game.updateStatus(GameStatus::GAME_START);
                     inputManager.turnOffBuffer();
                     clock.resetGameStepAccumulator();
                 }
@@ -89,17 +78,12 @@ int main() {
                 }
                 if (clock.isUpdateTime(3.f)) {
                     game.reset();
-                    window.updateScore(false);
+                    game.updateStatus(GameStatus::GAME_START);
                     inputManager.turnOffBuffer();
                     clock.resetGameStepAccumulator();
                 }
             }
             else if (game.status() == GameStatus::GAME_START) {
-                if (game.apple().isNew()) {
-                    window.updateScore();
-                    game.apple().setOld();
-                }
-
                 if (clock.isUpdateTime(0.5f))  {
                     configManager.setReadyToSaveFile();
                     game.updateStatus(GameStatus::GAME);
@@ -110,12 +94,9 @@ int main() {
                 }
             }
         }
-        /* End logic */
 
         inputManager.update();
-
-        window.swapBuffers();
-        window.pollEvents();
+        window.endFrame();
     }
 
     return 0;
@@ -126,9 +107,9 @@ void checkPressedKeys(Window& window, Drawer& drawer, Game& game, Clock& clock, 
         if (game.status() == GameStatus::MENU)
             window.close();
         else {
-            window.showDetailedTitle(false);
             game.updateStatus(GameStatus::MENU);
-            game.setDefaultHead();
+            game.reset();
+            window.setMenuMode(true);
             if (clock.isPauseTime())
                 clock.updatePauseStatus();
         }
@@ -153,11 +134,8 @@ void checkPressedKeys(Window& window, Drawer& drawer, Game& game, Clock& clock, 
     else if (game.status() == GameStatus::MENU) {
         if (inputManager.isKeyPressed(Action::Space) || window.isButtonClicked()) {
             window.setMenuMode(false);
-            window.updateScore(false);
-            window.showDetailedTitle(true);
 
             game.updateStatus(GameStatus::GAME_START);
-            game.reset();
 
             inputManager.turnOffBuffer();
             clock.resetGameStepAccumulator();
@@ -167,15 +145,11 @@ void checkPressedKeys(Window& window, Drawer& drawer, Game& game, Clock& clock, 
 
     else if (game.status() != GameStatus::MENU) {
         if (inputManager.isKeyPressed(Action::Pause)) {
-            window.setMenuMode(true);
             clock.updatePauseStatus();
             inputManager.changeWorkStatus();
         }
         else if (inputManager.isKeyPressed(Action::EasterEgg)) {
-            if (game.getPravednovBool())
-                game.setDefaultHead();
-            else
-                game.setPravednovHead();
+            drawer.changePravednovStatus();
         }
     }
 }

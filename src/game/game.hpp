@@ -1,62 +1,45 @@
 #pragma once
 #include "apple.hpp"
-#include "src/core/vector.hpp"
 #include "enums.hpp"
 #include "field.hpp"
 #include "snake.hpp"
 
 class Game {
-    Field m_field;
-    Snake m_snake;
-    Apple m_apple;
-
-    vec4f _snakeColor;
-    vec4f _themeColor;
-
-    GameStatus m_status;
-    GameStatus _prevStatus;
-    GameMode m_mode;
-
-    int m_score;
-    int _bestScore;
-
-    bool generateApple;
-    bool _pravednovHead = false;
-
-    bool checkLoose(vec2i& newHead);
-    
-    inline void _updateStatus(const GameStatus newStatus);
-    
-public:
+  public:
     Game();
     ~Game();
-    
-    GameStatus status() const { return m_status; }
-    GameMode mode() const { return m_mode; }
 
-    vec4f getSnakeColor() const { return _snakeColor; }
-    vec4f getThemeColor() const { return _themeColor; }
+    auto status() const -> GameStatus { return _status; }
+    auto mode() const -> GameMode { return _mode; }
 
-    int getScore() const { return m_score; }
-    int getBestScore() const { return _bestScore; }
+    auto getScore() const -> int { return _score; }
+    auto getBestScore() const -> int { return _bestScore; }
 
-    const Apple& apple() const { return m_apple; }
-    const Field& field() const { return m_field; }
-    const Snake& snake() const { return m_snake; }
+    auto apple() const -> const Apple& { return _apple; }
+    auto field() const -> const Field& { return _field; }
+    auto snake() const -> const Snake& { return _snake; }
 
-    Apple& apple() { return m_apple; }
-    Snake& snake() { return m_snake; }
+    auto apple() -> Apple& { return _apple; }
+    auto snake() -> Snake& { return _snake; }
 
     void update();
     void reset();
-    
+
     void updateStatus(GameStatus status);
+
     void saveStats();
 
-    void setPravednovHead() {
-        _pravednovHead = true;
-        _snakeColor = { 0.89f, 0.73f, 0.77f, 1.f };
-    }
-    void setDefaultHead();
-    bool getPravednovBool() const { return _pravednovHead; }
+  private:
+    Field _field;
+    Snake _snake;
+    Apple _apple;
+
+    GameStatus _status;
+    GameStatus _prevStatus;
+    GameMode _mode;
+
+    int _score;
+    int _bestScore;
+
+    bool _needToGenApple;
 };

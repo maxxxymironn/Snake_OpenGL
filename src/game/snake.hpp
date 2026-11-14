@@ -1,5 +1,5 @@
 #pragma once
-#include "../core/vector.hpp"
+#include "src/core/vector.hpp"
 #include <vector>
 
 struct Direction {
@@ -10,37 +10,27 @@ struct Direction {
 };
 
 class Snake {
-private:
+  public:
+    Snake(const vec2i fieldSize);
+
+    void increase();
+    void move(const vec2i newHead);
+
+    auto getBody() const -> const std::vector<vec2i>& { return _body; }
+    auto getLength() const -> unsigned int { return _body.size(); }
+    auto getHeadPos() const -> vec2i { return _head; }
+    auto getPrevTail() const -> vec2i { return _prevTail; }
+    auto getPrevPrevTail() const -> vec2i { return _prevPrevTail; }
+
+    void setDirection(const vec2i newDirection) { _direction = newDirection; }
+    auto getDirection() const -> vec2i { return _direction; }
+
+    void reset(const vec2i fieldSize);
+
+  private:
     vec2i _direction;
     std::vector<vec2i> _body;
     vec2i _head;
     vec2i _prevTail;
     vec2i _prevPrevTail;
-
-public:
-    Snake(const int width, const int height):
-        _direction(Direction::RIGHT),
-        _body({
-            { width / 2, height / 2 },
-            { width / 2 - 1, height / 2 }
-        }), 
-        _head(_body[0]), 
-        _prevTail(_body.back() - _direction),
-        _prevPrevTail(_prevTail - _direction) {}
-
-    void increase();
-    void move(const vec2i newHead);
-
-    const std::vector<vec2i>& getBody() const { return _body; }
-
-    vec2i getDirection() const { return _direction; }
-    vec2i getPrevTail() const { return _prevTail; }
-    vec2i getPrevPrevTail() const { return _prevPrevTail; }
-    vec2i getHeadPos() const { return _head; }
-    
-    std::size_t getLength() const { return _body.size(); }
-
-    void setDirection(const vec2i newDirection) { _direction = newDirection; }
-
-    void reset(const int width, const int height);
 };

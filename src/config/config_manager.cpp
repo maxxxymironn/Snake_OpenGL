@@ -302,12 +302,12 @@ bool ConfigManager::readFile() {
         else if (configVar == "snakeColor") {
             vec4f color = getColor(configVar, value);
             if (color != 0.f)
-                GameConfig::snakeColor = color;
+                DrawConfig::snakeColor = color;
         }
         else if (configVar == "themeColor") {
             vec4f color = getColor(configVar, value);
             if (color != 0.f)
-                GameConfig::themeColor = color;
+                DrawConfig::themeColor = color;
         }
         else {
             printError("\"" + configVar + "\" is unknown configuration variable");
@@ -353,28 +353,28 @@ bool ConfigManager::saveFile() {
     else strFieldSize = std::to_string(GameConfig::xFieldSize) + " " + std::to_string(GameConfig::yFieldSize);
 
     std::string strSnakeColor;
-    if (GameConfig::snakeColor == vec4f{ 0.80f, 0.80f, 0.80f, 1.f })        strSnakeColor = "WHITE";
-    else if (GameConfig::snakeColor == vec4f{ 0.05f, 0.05f, 0.05f, 1.f })   strSnakeColor = "BLACK";
-    else if (GameConfig::snakeColor == vec4f{ 0.20f, 0.20f, 0.20f, 1.f })   strSnakeColor = "GRAY";
-    else if (GameConfig::snakeColor == vec4f{ 0.50f, 0.15f, 0.20f, 1.f })   strSnakeColor = "RED";
-    else if (GameConfig::snakeColor == vec4f{ 0.15f, 0.40f, 0.20f, 1.f })   strSnakeColor = "GREEN";
-    else if (GameConfig::snakeColor == vec4f{ 0.15f, 0.20f, 0.45f, 1.f })   strSnakeColor = "BLUE";
-    else if (GameConfig::snakeColor == vec4f{ 0.30f, 0.40f, 0.90f, 1.f })   strSnakeColor = "AQUA";
-    else if (GameConfig::snakeColor == vec4f{ 0.40f, 0.10f, 0.40f, 1.f })   strSnakeColor = "PURPLE";
-    else if (GameConfig::snakeColor == vec4f{ 0.80f, 0.10f, 0.40f, 1.f })   strSnakeColor = "PINK";
-    else if (GameConfig::snakeColor == vec4f{ 0.90f, 0.45f, 0.05f, 1.f })   strSnakeColor = "ORANGE";
+    if (DrawConfig::snakeColor == vec4f{ 0.80f, 0.80f, 0.80f, 1.f })        strSnakeColor = "WHITE";
+    else if (DrawConfig::snakeColor == vec4f{ 0.05f, 0.05f, 0.05f, 1.f })   strSnakeColor = "BLACK";
+    else if (DrawConfig::snakeColor == vec4f{ 0.20f, 0.20f, 0.20f, 1.f })   strSnakeColor = "GRAY";
+    else if (DrawConfig::snakeColor == vec4f{ 0.50f, 0.15f, 0.20f, 1.f })   strSnakeColor = "RED";
+    else if (DrawConfig::snakeColor == vec4f{ 0.15f, 0.40f, 0.20f, 1.f })   strSnakeColor = "GREEN";
+    else if (DrawConfig::snakeColor == vec4f{ 0.15f, 0.20f, 0.45f, 1.f })   strSnakeColor = "BLUE";
+    else if (DrawConfig::snakeColor == vec4f{ 0.30f, 0.40f, 0.90f, 1.f })   strSnakeColor = "AQUA";
+    else if (DrawConfig::snakeColor == vec4f{ 0.40f, 0.10f, 0.40f, 1.f })   strSnakeColor = "PURPLE";
+    else if (DrawConfig::snakeColor == vec4f{ 0.80f, 0.10f, 0.40f, 1.f })   strSnakeColor = "PINK";
+    else if (DrawConfig::snakeColor == vec4f{ 0.90f, 0.45f, 0.05f, 1.f })   strSnakeColor = "ORANGE";
 
     std::string strThemeColor;
-    if (GameConfig::themeColor == vec4f{ 0.80f, 0.80f, 0.80f, 1.f })        strThemeColor = "WHITE";
-    else if (GameConfig::themeColor == vec4f{ 0.05f, 0.05f, 0.05f, 1.f })   strThemeColor = "BLACK";
-    else if (GameConfig::themeColor == vec4f{ 0.20f, 0.20f, 0.20f, 1.f })   strThemeColor = "GRAY";
-    else if (GameConfig::themeColor == vec4f{ 0.50f, 0.15f, 0.20f, 1.f })   strThemeColor = "RED";
-    else if (GameConfig::themeColor == vec4f{ 0.15f, 0.40f, 0.20f, 1.f })   strThemeColor = "GREEN";
-    else if (GameConfig::themeColor == vec4f{ 0.15f, 0.20f, 0.45f, 1.f })   strThemeColor = "BLUE";
-    else if (GameConfig::themeColor == vec4f{ 0.30f, 0.40f, 0.90f, 1.f })   strThemeColor = "AQUA";
-    else if (GameConfig::themeColor == vec4f{ 0.40f, 0.10f, 0.40f, 1.f })   strThemeColor = "PURPLE";
-    else if (GameConfig::themeColor == vec4f{ 0.80f, 0.10f, 0.40f, 1.f })   strThemeColor = "PINK";
-    else if (GameConfig::themeColor == vec4f{ 0.90f, 0.45f, 0.05f, 1.f })   strThemeColor = "ORANGE";
+    if (DrawConfig::themeColor == vec4f{ 0.80f, 0.80f, 0.80f, 1.f })        strThemeColor = "WHITE";
+    else if (DrawConfig::themeColor == vec4f{ 0.05f, 0.05f, 0.05f, 1.f })   strThemeColor = "BLACK";
+    else if (DrawConfig::themeColor == vec4f{ 0.20f, 0.20f, 0.20f, 1.f })   strThemeColor = "GRAY";
+    else if (DrawConfig::themeColor == vec4f{ 0.50f, 0.15f, 0.20f, 1.f })   strThemeColor = "RED";
+    else if (DrawConfig::themeColor == vec4f{ 0.15f, 0.40f, 0.20f, 1.f })   strThemeColor = "GREEN";
+    else if (DrawConfig::themeColor == vec4f{ 0.15f, 0.20f, 0.45f, 1.f })   strThemeColor = "BLUE";
+    else if (DrawConfig::themeColor == vec4f{ 0.30f, 0.40f, 0.90f, 1.f })   strThemeColor = "AQUA";
+    else if (DrawConfig::themeColor == vec4f{ 0.40f, 0.10f, 0.40f, 1.f })   strThemeColor = "PURPLE";
+    else if (DrawConfig::themeColor == vec4f{ 0.80f, 0.10f, 0.40f, 1.f })   strThemeColor = "PINK";
+    else if (DrawConfig::themeColor == vec4f{ 0.90f, 0.45f, 0.05f, 1.f })   strThemeColor = "ORANGE";
 
     std::string strGameSpeed;
     if (CoreConfig::gameSpeed == 0.1f) {
