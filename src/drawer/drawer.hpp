@@ -45,16 +45,16 @@ class Drawer {
       vec4f _auxThemeColor;
       vec4f _snakeColor;
 
-      vec2f addPanel();
-      void addPanelIcons(const int fps, const int score, const int bestScore, 
+      vec2f _addPanel();
+      void _addPanelIcons(const int fps, const int score, const int bestScore, 
                          const vec2i fieldSize, const char* gameMode);
-      void addField(const vec2i cellsNum);
-      void addInvisibleLines();
-      void addApple(const vec2f position, const float breathCoeff);
-      void addDynamicSnake(const Snake& snake);
-      void addStreamSnake(const Snake& snake, const float snakeMovingCoeff, const bool eatingApple, 
+      void _addField(const vec2i cellsNum);
+      void _addInvisibleLines();
+      void _addApple(const vec2f position, const float breathCoeff);
+      void _addDynamicSnake(const Snake& snake);
+      void _addStreamSnake(const Snake& snake, const float snakeMovingCoeff, const bool eatingApple, 
                           const vec2i applePos, bool& straightLook, const bool isBlinkTime);
-      void addPlayButton(const float breathCoeff);
+      void _addPlayButton(const float breathCoeff);
 
       void _printText(const std::string& str);
       void _add(const RectangleData& data);
