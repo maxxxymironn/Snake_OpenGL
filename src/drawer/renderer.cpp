@@ -100,7 +100,7 @@ namespace {
 void Renderer::init() {
     constexpr int STATIC_RECTANGLES = 1000;
     constexpr int DYNAMIC_RECTANGLES = 1600;
-    constexpr int STREAM_RECTANGLES = 30;
+    constexpr int STREAM_RECTANGLES = 2000;
     constexpr int MAX_RECTANGLES = STATIC_RECTANGLES + DYNAMIC_RECTANGLES + STREAM_RECTANGLES;
 
     // setting ebo
@@ -119,14 +119,14 @@ void Renderer::init() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(indices), &indices[0], GL_STATIC_DRAW);
 
     // setting VBOs
-    genBuffer(_staticVBO, GL_STATIC_DRAW, STATIC_RECTANGLES);
-    genBuffer(_dynamicVBO, GL_DYNAMIC_DRAW, DYNAMIC_RECTANGLES);
-    genBuffer(_streamVBO, GL_STREAM_DRAW, STREAM_RECTANGLES);
+    genBuffer(_staticBuffer.vbo, GL_STATIC_DRAW, STATIC_RECTANGLES);
+    genBuffer(_dynamicBuffer.vbo, GL_DYNAMIC_DRAW, DYNAMIC_RECTANGLES);
+    genBuffer(_streamBuffer.vbo, GL_STREAM_DRAW, STREAM_RECTANGLES);
 
     // setting VAOs
-    genVertexArray(_staticVAO, _staticVBO, _ebo);
-    genVertexArray(_dynamicVAO, _dynamicVBO, _ebo);
-    genVertexArray(_streamVAO, _streamVBO, _ebo);
+    genVertexArray(_staticBuffer.vao, _staticBuffer.vbo, _ebo);
+    genVertexArray(_dynamicBuffer.vao, _dynamicBuffer.vbo, _ebo);
+    genVertexArray(_streamBuffer.vao, _streamBuffer.vbo, _ebo);
 
     // setting textures
     constexpr GLsizei TEX_SIZE = 128;
@@ -181,14 +181,8 @@ void Renderer::init() {
 }
 
 Renderer::Renderer()
-    : _shaderProgram(0),
-      _staticVAO(0), _staticVBO(0),
-      _dynamicVAO(0), _dynamicVBO(0),
-      _streamVAO(0), _streamVBO(0),
-      _drawingIndices(0),
-      _staticDrawingIndices(0),
-      _dynamicDrawingIndices(0),
-      _streamDrawingIndices(0)
+    : _shaderProgram(0)
+    , _bindedBuffer(nullptr)
 {
     GLuint vertexShader = createShader(GL_VERTEX_SHADER, shaders::vertexShaderSource);
     GLuint fragmentShader = createShader(GL_FRAGMENT_SHADER, shaders::fragmentShaderSource);
@@ -201,85 +195,90 @@ Renderer::Renderer()
 }
 
 Renderer::~Renderer() {
-    if (_staticVAO) glDeleteVertexArrays(1, &_staticVAO);
-    if (_staticVBO) glDeleteBuffers(1, &_staticVBO);
-
-    if (_dynamicVAO) glDeleteVertexArrays(1, &_dynamicVAO);
-    if (_dynamicVBO) glDeleteBuffers(1, &_dynamicVBO);
-
-    if (_streamVAO) glDeleteVertexArrays(1, &_streamVAO);
-    if (_streamVBO) glDeleteBuffers(1, &_streamVBO);
-
     if (_ebo) glDeleteBuffers(1, &_ebo);
     if (_shaderProgram) glDeleteProgram(_shaderProgram);
 }
 
-void Renderer::refreshStaticBuffer() {
-    glBindVertexArray(_staticVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, _staticVBO);
-    glBufferSubData(
-        GL_ARRAY_BUFFER, 0,
-        sizeof(Rectangle) * _rectangleArray.size(), _rectangleArray.data()
-    );
-    glBindVertexArray(0);
-
-    _rectangleArray.clear();
-    _staticDrawingIndices = _drawingIndices;
-    _drawingIndices = 0;
+void Renderer::bindBuffer(const BufferType bufferType) {
+    switch (bufferType) {
+        case BufferType::STATIC: _bindedBuffer = &_staticBuffer; break;
+        case BufferType::DYNAMIC: _bindedBuffer = &_dynamicBuffer; break;
+        case BufferType::STREAM: _bindedBuffer = &_streamBuffer; break;
+    }
 }
 
-void Renderer::refreshDynamicBuffer() {
-    glBindVertexArray(_dynamicVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, _dynamicVBO);
-    glBufferSubData(
-        GL_ARRAY_BUFFER, 0,
-        sizeof(Rectangle) * _rectangleArray.size(), _rectangleArray.data()
-    );
-    glBindVertexArray(0);
-
-    _rectangleArray.clear();
-    _dynamicDrawingIndices = _drawingIndices;
-    _drawingIndices = 0;
+void Renderer::refreshBuffer(const BufferType buffer) {
+    switch (buffer) {
+        case BufferType::STATIC: _staticBuffer.refresh(); break;
+        case BufferType::DYNAMIC: _dynamicBuffer.refresh(); break;
+        case BufferType::STREAM: _streamBuffer.refresh(true); break;
+    }
 }
 
-void Renderer::refreshStreamBuffer() {
-    glBindVertexArray(_streamVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, _streamVBO);
-    glBufferData(
-        GL_ARRAY_BUFFER, sizeof(Rectangle) * _drawingIndices,
-        nullptr, GL_STREAM_DRAW
-    );
-    glBufferSubData(
-        GL_ARRAY_BUFFER, 0,
-        sizeof(Rectangle) * _rectangleArray.size(), _rectangleArray.data()
-    );
-    glBindVertexArray(0);
+void Renderer::setBufferDrawStatus(const BufferType buffer, const bool draw) {
+    switch (buffer) {
+        case BufferType::STATIC: _staticBuffer.indices = draw ? _staticBuffer.data.size() * 6 : 0; break;
+        case BufferType::DYNAMIC: _dynamicBuffer.indices = draw ? _bindedBuffer->data.size() * 6 : 0; break;
+        case BufferType::STREAM: _streamBuffer.indices = draw ? _bindedBuffer->data.size() * 6 : 0; break;
+    }
+}
 
-    _rectangleArray.clear();
-    _streamDrawingIndices = _drawingIndices;
-    _drawingIndices = 0;
+void Renderer::clearBuffer(const BufferType buffer) {
+    switch (buffer) {
+        case BufferType::STATIC:
+            _staticBuffer.data.clear();
+            _staticBuffer.indices = 0;
+            break;
+        case BufferType::DYNAMIC:
+            _dynamicBuffer.data.clear();
+            _dynamicBuffer.indices = 0;
+            break;
+        case BufferType::STREAM:
+            _streamBuffer.data.clear();
+            _streamBuffer.indices = 0;
+            break;
+    }
 }
 
 void Renderer::setClearColor(const vec4f color) { glClearColor(color.x, color.y, color.z, color.w); }
 
 void Renderer::addObject(const Rectangle& rect) {
-    _drawingIndices += 6;
-    _rectangleArray.emplace_back(rect);
+    _bindedBuffer->indices += 6;
+    _bindedBuffer->data.push_back(rect);
 }
 
 void Renderer::draw() {
     glUseProgram(_shaderProgram);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glBindVertexArray(_staticVAO);
-    glDrawElements(GL_TRIANGLES, _staticDrawingIndices, GL_UNSIGNED_INT, 0);
-
-    glBindVertexArray(_dynamicVAO);
-    glDrawElements(GL_TRIANGLES, _dynamicDrawingIndices, GL_UNSIGNED_INT, 0);
-
-    glBindVertexArray(_streamVAO);
-    glDrawElements(GL_TRIANGLES, _streamDrawingIndices, GL_UNSIGNED_INT, 0);
+    _staticBuffer.draw();
+    _dynamicBuffer.draw();
+    _streamBuffer.draw();
 
     glBindVertexArray(0);
     glUseProgram(0);
+}
+
+Renderer::_Buffer::_Buffer(): vao(0), vbo(0), indices(0), data(0) {}
+
+Renderer::_Buffer::~_Buffer() {
+    if (vbo) glDeleteBuffers(1, &vbo);
+    if (vao) glDeleteVertexArrays(1, &vao);
+}
+
+void Renderer::_Buffer::refresh(const bool newAllocate) {
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    if (newAllocate)
+        glBufferData(GL_ARRAY_BUFFER, sizeof(Rectangle) * data.size(), data.data(), GL_STREAM_DRAW);
+    else
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Rectangle) * data.size(), data.data());
+    glBindVertexArray(0);
+}
+
+void Renderer::_Buffer::draw() {
+    if (indices) {
+        glBindVertexArray(vao);
+        glDrawElements(GL_TRIANGLES, indices, GL_UNSIGNED_INT, 0);
+    }
 }

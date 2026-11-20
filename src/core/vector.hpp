@@ -172,7 +172,7 @@ inline vec2<T> operator*(vec2<T> lv, const vec2<T>& rv) {
 }
 
 template <typename T>
-inline vec2<T> operator*(vec2<T> vec, const T& n) {
+constexpr inline vec2<T> operator*(vec2<T> vec, const T& n) {
     vec.x *= n;
     vec.y *= n;
     return vec;

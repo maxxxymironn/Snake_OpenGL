@@ -1,20 +1,22 @@
 #pragma once
 
-enum class GameStatus {
+enum class GameStatus: char {
     MENU,
-    GAME_START,
+    MENU_SETTINGS,
     GAME,
-    WIN,
-    LOOSE,
+    GAME_START,
+    GAME_WIN,
+    GAME_LOOSE,
+    GAME_SURE_EXIT,
 };
 
-enum class GameMode {
+enum class GameMode: char {
     DEFAULT,
     THROUGH_WALLS,
     BOUNDLESS
 };
 
-enum class Color {
+enum class Color: char {
     WHITE,
     BLACK,
     GRAY,

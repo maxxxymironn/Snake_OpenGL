@@ -35,7 +35,6 @@ class Game {
     Apple _apple;
 
     GameStatus _status;
-    GameStatus _prevStatus;
     GameMode _mode;
 
     int _score;

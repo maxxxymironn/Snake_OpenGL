@@ -1,31 +1,42 @@
-#include "../core/action.hpp"
-
-#include "../core/vector.hpp"
+#include "src/core/action.hpp"
+#include "src/core/vector.hpp"
 
 #include <functional>
 
-class GLFWwindow;
-class GLFWcursor;
+struct GLFWwindow;
+struct GLFWcursor;
 
 class Window {
+  public:
+    Window();
+    ~Window();
+
+    void setInputManagerSetKey(std::function<void(Action, bool, Mod)> fn) { inputManagerSetKey = std::move(fn); }
+    void setRefreshCallback(std::function<void()> fn) { refreshScreen = std::move(fn); }
+    
+    auto getViewSize() const -> vec2i { return _viewSize; }
+
+    void updateView(const vec2f fieldSize, const float contentScale, const bool zenMode);
+
+    void close() const;
+    auto shouldClose() -> bool;
+
+    void endFrame();
+    
+  private:
     GLFWwindow* _handle = nullptr;
     GLFWcursor* _cursorHandle = nullptr;
 
     vec4i _windowParam;
     vec2i _bufferSize;
-    vec2i _rawViewSize;
     vec2i _viewSize;
-    vec2i _fieldSize;
-
     float _windowScale;
-    float _contentScale;
-
     bool _fullscreen;
-    bool _zenMode;
-    bool _buttonClicked;
 
     std::function<void(Action key, bool isPressed, Mod mods)> inputManagerSetKey;
     std::function<void()> refreshScreen;
+
+    void setViewport();
 
     static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
     static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
@@ -35,46 +46,4 @@ class Window {
     static void contentSizeCallback(GLFWwindow* window, float xScale, float yScale);
     static void refreshCallback(GLFWwindow* window);
     static void errorCallback(const int error_code, const char *description);
-
-    void setTitle();
-    void setViewport();
-    void updateView();
-public:
-    Window();
-    ~Window();
-
-    void setInputManagerSetKey(std::function<void(Action, bool, Mod)> fn) { inputManagerSetKey = std::move(fn); }
-    void setRefreshCallback(std::function<void()> fn) { refreshScreen = std::move(fn); }
-
-    vec2i getViewSize() const { return _viewSize; }
-    vec2i getRawViewSize() const { return _rawViewSize; }
-    float getContentScale() const { return _contentScale; }
-    bool getZenMode() const { return _zenMode; }
-
-    void updateFieldSize(const vec2i fieldCellSize) { _fieldSize = fieldCellSize * 40; updateView(); }
-    void increaseContentScaling() {
-        if (_contentScale < 2.f) {
-            _contentScale += 0.1f;
-            updateView();
-        }
-    }
-    void decreaseContentScaling() {
-        if (_contentScale > 0.5f) {
-            _contentScale -= 0.1f; 
-            updateView(); 
-        }
-    }
-    void changeZenStatus() { _zenMode = !_zenMode; updateView(); }
-
-    void close() const;
-    bool shouldClose();
-
-    void endFrame();
-
-    bool isButtonClicked() { 
-        bool answer = _buttonClicked; 
-        _buttonClicked = false; 
-        return answer; 
-    }
-    void setMenuMode(const bool isMenu);
 };

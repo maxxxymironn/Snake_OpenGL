@@ -1,20 +1,22 @@
 #pragma once
 
 enum class Action {
-    Exit,
-    Pause,
-    Space,
+    EXIT,
+    PAUSE,
+    SPACE,
+    YES,
+    NO,
 
-    MoveUp,
-    MoveDown,
-    MoveLeft,
-    MoveRight,
+    MOVE_UP,
+    MOVE_DOWN,
+    MOVE_LEFT,
+    MOVE_RIGHT,
 
-    ScaleUp,
-    ScaleDown,
-    ZenMode,
+    SCALE_UP,
+    SCALE_DOWN,
+    ZEN_MODE,
 
-    EasterEgg,
+    PRAVEDNOV,
 
     COUNT
 };

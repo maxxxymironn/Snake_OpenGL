@@ -1,39 +1,40 @@
 #include "input_manager.hpp"
 #include "action.hpp"
-#include <cstring>
 
-void InputManager::update() {
-    std::memcpy(prevKeys, currentKeys, sizeof(currentKeys));
-}
+void InputManager::update() { _prevKeys = _curKeys; }
 
 void InputManager::setKey(Action key, bool pressed, Mod mods) {
-    if (key == Action::ScaleUp || key == Action::ScaleDown || key == Action::ZenMode || key == Action::EasterEgg) {
+    if (key == Action::SCALE_UP || key == Action::SCALE_DOWN || key == Action::ZEN_MODE || key == Action::PRAVEDNOV) {
         if (mods == Mod::CTRL)
-            currentKeys[static_cast<int>(key)] = pressed;
+            _curKeys[static_cast<int>(key)] = pressed;
         return;
     }
 
     if (mods != Mod::EMPTY)
         return;
 
-    currentKeys[static_cast<int>(key)] = pressed;
+    _curKeys[static_cast<int>(key)] = pressed;
 
-    if (isBufferWorking
+    if (_isBufferWorking
         && isKeyPressed(key)
-        && (key == Action::MoveUp || key == Action::MoveLeft 
-        || key == Action::MoveDown || key == Action::MoveRight) 
+        && (key == Action::MOVE_UP || key == Action::MOVE_LEFT
+        || key == Action::MOVE_DOWN || key == Action::MOVE_RIGHT)
     ) {
-        if (buffer.size() < 2) {
-            if (!buffer.empty()) {
-                if (buffer.back() != key)
-                    buffer.push(key);
+        if (_buffer.size() < 2) {
+            if (!_buffer.empty()) {
+                if (_buffer.back() != key)
+                    _buffer.push(key);
                 return;
             }
-            buffer.push(key);
+            _buffer.push(key);
         }
     }
 }
 
-bool InputManager::isKeyDown(Action key) const { return  currentKeys[static_cast<int>(key)]; }
-bool InputManager::isKeyPressed(Action key) const { return  currentKeys[static_cast<int>(key)] && !prevKeys[static_cast<int>(key)]; }
-bool InputManager::isKeyReleased(Action key) const { return !currentKeys[static_cast<int>(key)] && prevKeys[static_cast<int>(key)]; }
+bool InputManager::isKeyDown(Action key) const { return _curKeys[static_cast<int>(key)]; }
+bool InputManager::isKeyPressed(Action key) const {
+    return _curKeys[static_cast<int>(key)] && !_prevKeys[static_cast<int>(key)];
+}
+bool InputManager::isKeyReleased(Action key) const {
+    return !_curKeys[static_cast<int>(key)] && _prevKeys[static_cast<int>(key)];
+}

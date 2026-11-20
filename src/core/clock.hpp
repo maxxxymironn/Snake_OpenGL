@@ -98,8 +98,9 @@ public:
     float getAppleBreathingCoeff() const { return _appleBreathingCoeff; }
     float getSnakeMovingCoeff() const { return _snakeMovingCoeff; }
     float getPrevFrames() const { return _prevFrames; }
+    float getStepTime() const { return _stepTime; }
 
-    bool isUpdateTime(float time=CoreConfig::gameSpeed) const { return _gameStepAccumulator >= time; }
+    bool isMoreThan(float time=CoreConfig::gameSpeed) const { return _gameStepAccumulator >= time; }
     bool isBlinkTime() const { return _blinking; }
     bool isPauseTime() const { return _onPause; }
 

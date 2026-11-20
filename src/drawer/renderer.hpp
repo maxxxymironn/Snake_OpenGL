@@ -5,41 +5,51 @@
 
 #include <vector>
 
-class Renderer {  
+enum class BufferType: char {
+    STATIC,
+    DYNAMIC,
+    STREAM,
+};
+
+class Renderer {
   public:
     Renderer();
     ~Renderer();
 
     bool getInitializeInfo() const { return _shaderProgram; }
 
-    void refreshStaticBuffer();
-    void refreshDynamicBuffer();
-    void refreshStreamBuffer();
+    void bindBuffer(const BufferType buffer);
+    void refreshBuffer(const BufferType buffer);
+    void setBufferDrawStatus(const BufferType buffer, const bool draw);
+    void clearBuffer(const BufferType buffer);
 
     void setClearColor(const vec4f color);
 
     void addObject(const Rectangle& rect);
     void draw();
-    
+
   private:
     unsigned int _shaderProgram;
-
-    unsigned int _staticVAO;
-    unsigned int _staticVBO;
-    unsigned int _dynamicVAO;
-    unsigned int _dynamicVBO;
-    unsigned int _streamVAO;
-    unsigned int _streamVBO;
-    
     unsigned int _ebo;
     unsigned int _textureArray;
 
-    unsigned int _drawingIndices;
-    unsigned int _staticDrawingIndices;
-    unsigned int _dynamicDrawingIndices;
-    unsigned int _streamDrawingIndices;
+    struct _Buffer {
+        unsigned int vao;
+        unsigned int vbo;
+        unsigned int indices;
+        std::vector<Rectangle> data;
 
-    std::vector<Rectangle> _rectangleArray;
+        _Buffer();
+        ~_Buffer();
+
+        void refresh(const bool newAllocate=false);
+        void draw();
+    };
+
+    _Buffer _staticBuffer;
+    _Buffer _dynamicBuffer;
+    _Buffer _streamBuffer;
+    _Buffer* _bindedBuffer;
 
     void init();
 };

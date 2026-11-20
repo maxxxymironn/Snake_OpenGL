@@ -1,10 +1,13 @@
 #include "drawer.hpp"
 
 #include "rectangle.hpp"
+#include "src/drawer/enums.hpp"
+#include "src/drawer/renderer.hpp"
 #include "texture_enum.hpp"
 #include "src/config/draw_config.hpp"
 #include "src/game/enums.hpp"
 
+// #include <iostream>
 #include <string>
 
 namespace {
@@ -12,7 +15,9 @@ namespace {
     constexpr float PI2 = PI / 2.f;
 
     constexpr float CELL_SIZE = 40.f;
+    constexpr vec2f SYMBOL_SIZE = { 16.f, 25.f };
     constexpr vec2f PANEL_SIZE = { 800.f, 160.f };
+    constexpr vec2f PANEL_CENTER = PANEL_SIZE * 0.5f;
 
     namespace Depth {
         constexpr float FIELD = 0.9f;
@@ -27,7 +32,7 @@ namespace {
         constexpr float PANEL = 0.1f;
         constexpr float PANEL_ICONS = 0.0f;
     }
-    
+
     vec2f getThroughPos(vec2f position, const vec2i direction, const vec2f fieldSize) {
         if (direction.x != 0)
             position.x += fieldSize.x * (direction.x > 0 ? -1.f : 1.f);
@@ -51,17 +56,37 @@ namespace {
             point.x * sinf(rotateAngle) + point.y * cosf(rotateAngle)
         };
     }
+
+    vec2f calculateViewSize(const vec2f fieldSize, const bool zenMode) {
+        constexpr vec2f MIN_VIEW_SIZE = { 800.f, 1000.f };
+        return zenMode ? fieldSize
+            : vec2f{
+                (fieldSize.x <= MIN_VIEW_SIZE.x ? MIN_VIEW_SIZE.x : fieldSize.x) + 40.f,
+                (fieldSize.y <= MIN_VIEW_SIZE.y - PANEL_SIZE.y ? MIN_VIEW_SIZE.y : fieldSize.y + PANEL_SIZE.y) + 20.f
+            };
+    }
 }
 
 Drawer::Drawer()
     : _zenMode(DrawConfig::zenMode)
+    , _zenModeChanged(false)
     , _updateStaticBuffer(true)
-    , _isPrevStatusMenu(true)
     , _isPravednovHead(false)
     , _contentScale(DrawConfig::contentScale)
+    , _origin(0.f, 0.f)
     , _themeColor(DrawConfig::themeColor)
     , _auxThemeColor({ _themeColor.x - 0.05f, _themeColor.y - 0.05f, _themeColor.z - 0.05f, _themeColor.w })
-    , _snakeColor(DrawConfig::snakeColor) {}
+    , _snakeColor(DrawConfig::snakeColor)
+{
+    _rendererHandler.setClearColor({ _themeColor.x - 0.1f, _themeColor.y - 0.1f, _themeColor.z - 0.1f, _themeColor.w });
+}
+
+Drawer::~Drawer() {
+    DrawConfig::contentScale = _contentScale;
+    DrawConfig::zenMode = _zenMode;
+    DrawConfig::snakeColor = _snakeColor;
+    DrawConfig::themeColor = _themeColor;
+}
 
 void Drawer::updateSnakeColor(const vec4f color) { _snakeColor = color; }
 
@@ -71,14 +96,27 @@ void Drawer::updateThemeColor(const vec4f color) {
     _rendererHandler.setClearColor({ color.x - 0.1f, color.y - 0.1f, color.z - 0.1f, color.w });
 }
 
-void Drawer::updateViewSize(const vec2f size) {
-    _viewSize = size;
-    _updateStaticBuffer = true;
+// void Drawer::updateViewSize(const vec2f size) {
+//     _viewSize = size;
+//     _updateStaticBuffer = true;
+// }
+
+void Drawer::updateZenMode() {
+    _zenMode = !_zenMode; _zenModeChanged = true;
+    _viewSize = calculateViewSize(_fieldSize, _zenMode);
 }
 
-void Drawer::updateZenMode(const bool zenMode) { _zenMode = zenMode; }
+void Drawer::updateContentScale(const bool increase) {
+    if (increase && _contentScale < 200)
+        _contentScale += 10;
+    else if (!increase && _contentScale > 50)
+        _contentScale -= 10;
+}
 
-void Drawer::updateContentScale(const float scaleCoeff) { _contentScale = scaleCoeff; }
+void Drawer::updateFieldSize(const vec2i fieldCellsNum) {
+    _fieldSize = static_cast<vec2f>(fieldCellsNum) * CELL_SIZE;
+    _viewSize = calculateViewSize(_fieldSize, _zenMode);
+}
 
 void Drawer::changePravednovStatus() {
     _isPravednovHead = !_isPravednovHead;
@@ -87,80 +125,91 @@ void Drawer::changePravednovStatus() {
 }
 
 void Drawer::draw(const Game& game, const Clock& clock) {
-    const bool isMenuStatus = game.status() == GameStatus::MENU;
-    const bool isMenuStatusChanged = !_isPrevStatusMenu == isMenuStatus;
-    _updateStaticBuffer = _updateStaticBuffer || isMenuStatusChanged;
+    const bool inGame = game.status() != GameStatus::MENU && game.status() != GameStatus::MENU_SETTINGS;
+    static bool prevStatusMenu = true;
 
-    _origin = {0.f, 0.f};
-    // render static object which here and there are
-    if (_updateStaticBuffer) {
-        if (!_zenMode) {
-            _lbPanelPos = _addPanel();
-        }
-        if (isMenuStatus) {
-            _updateStaticBuffer = false;
-            _rendererHandler.refreshStaticBuffer();
-            _rendererHandler.refreshDynamicBuffer();
-        }
+    if ((prevStatusMenu && inGame) || (!prevStatusMenu && !inGame)) {
+        _rendererHandler.clearBuffer(BufferType::DYNAMIC);
+        prevStatusMenu = !inGame;
     }
-    _origin = {0.f, 0.f};
 
+    if (_updateStaticBuffer && !_zenMode) {
+        _rendererHandler.clearBuffer(BufferType::STATIC);
+        _rendererHandler.bindBuffer(BufferType::STATIC);
+        _lbPanelPos = _addPanel();
+        _addPanelIcons();
+        _rendererHandler.refreshBuffer(BufferType::STATIC);
+        _updateStaticBuffer = false;
+    }
 
-    if (isMenuStatus) {
-        _isPrevStatusMenu = true;
+    if (_zenModeChanged) {
+        _rendererHandler.setBufferDrawStatus(BufferType::STATIC, !_zenMode);
+        _rendererHandler.setBufferDrawStatus(BufferType::STREAM, !_zenMode);
+        _zenModeChanged = false;
+    }
 
-        _addPlayButton(clock.getAppleBreathingCoeff());
-        _rendererHandler.refreshStreamBuffer();
+    if (!_zenMode) {
+        _rendererHandler.clearBuffer(BufferType::STREAM);
+
+        _rendererHandler.bindBuffer(BufferType::STREAM);
+        const int score = inGame ? game.getScore() : -1;
+        _addPanelIconsValues(clock.getPrevFrames(), game.field().size(), game.mode(),
+                             clock.getStepTime(), game.getBestScore(), score);
+    }
+
+    if (game.status() == GameStatus::MENU) {
+        _rendererHandler.bindBuffer(BufferType::STREAM);
+        _addMenuButtons();
+    }
+    else if (game.status() == GameStatus::MENU_SETTINGS) {
+        // wip
     }
     else {
-        _isPrevStatusMenu = false;
-
-        if (_updateStaticBuffer) {
-            _addField(game.field().size());
-            _addInvisibleLines();
-            _rendererHandler.refreshStaticBuffer();
-            _updateStaticBuffer = false;
-        }
+        static bool straightLook = false;
+        // draw field - STATIC 3
+        // draw invisible lines - STATIC 3
+        // draw snake - DYNAMIC/STREAM
+        // draw apple - STREAM
+        _rendererHandler.bindBuffer(BufferType::STREAM);
+        _addField(game.field().size());
+        _addInvisibleLines();
         _origin = _lbFieldPos - vec2f{ CELL_SIZE * 0.5f };
 
-        static bool straightLook = false;
+        bool eatingApple = false;
+        vec2i applePos = game.snake().getHeadPos();
+        if (game.apple().getPosition().has_value()) {
+            applePos = game.apple().getPosition().value();
+            eatingApple = game.snake().getHeadPos() == applePos;
+            if (!(eatingApple && clock.getSnakeMovingCoeff() > 0.9f))
+                _addApple(applePos, clock.getAppleBreathingCoeff());
+        }
 
         if (clock.getSnakeMovingCoeff() > 0.5f) {
             straightLook = false;
+            _rendererHandler.clearBuffer(BufferType::DYNAMIC);
+            _rendererHandler.bindBuffer(BufferType::DYNAMIC);
             _addDynamicSnake(game.snake());
-            _rendererHandler.refreshDynamicBuffer();
+            _rendererHandler.refreshBuffer(BufferType::DYNAMIC);
+
+            _rendererHandler.bindBuffer(BufferType::STREAM);
         }
-
-        const bool eatingApple = game.snake().getHeadPos() == game.apple().getPosition();
-
-        const vec2i applePos = game.apple().getPosition().has_value()
-            ? game.apple().getPosition().value()
-            : game.snake().getHeadPos();
 
         _addStreamSnake(game.snake(), clock.getSnakeMovingCoeff(), eatingApple,
-                       applePos, straightLook, clock.isBlinkTime());
-        if (!(eatingApple && clock.getSnakeMovingCoeff() > 0.9f) && game.apple().getPosition().has_value())
-            _addApple(game.apple().getPosition().value(), clock.getAppleBreathingCoeff());
+                        applePos, straightLook, clock.isBlinkTime());
 
-        if (!_zenMode) {
-            _origin = _lbPanelPos;
-            const char* mode =
-                game.mode() == GameMode::DEFAULT
-                    ? "DEFAULT"
-                    : (game.mode() == GameMode::THROUGH_WALLS
-                        ? "THROUGH"
-                        : "BOUNDLESS");
-            _addPanelIcons(clock.getPrevFrames(), game.getScore(), game.getBestScore(),
-                          game.field().size(), mode);
-        }
-
-        _rendererHandler.refreshStreamBuffer();
+        const bool winOrLoose = game.status() == GameStatus::GAME_LOOSE || game.status() == GameStatus::GAME_WIN;
+        if ((winOrLoose && clock.isMoreThan(1.f)) || game.status() == GameStatus::GAME_SURE_EXIT)
+            _addAuxPanel(game.status());
     }
 
+    _rendererHandler.refreshBuffer(BufferType::STREAM);
     _rendererHandler.draw();
+    _rendererHandler.clearBuffer(BufferType::STREAM);
 }
 
 vec2f Drawer::_addPanel() {
+    _origin = 0.f;
+
     _data.size = PANEL_SIZE;
     _data.pos = { _viewSize.x * 0.5f, _viewSize.y - _data.size.y * 0.5f - 20.f };
     _data.depth = Depth::PANEL;
@@ -174,72 +223,173 @@ vec2f Drawer::_addPanel() {
     return _data.pos - _data.size * 0.5f;
 }
 
-void Drawer::_addPanelIcons(const int fps, const int score, const int bestScore,
-                           const vec2i fieldSize, const char* gameMode) {
+void Drawer::_addPanelIcons() {
+    _origin = _lbPanelPos;
+
     _data.texCoord = { 0.f, 0.f, 1.f, 1.f };
     _data.depth = Depth::PANEL_ICONS;
     _data.rotateAngle = 0.f;
 
+    const bool isThemeLight = _themeColor.x > 0.7 && _themeColor.y > 0.7 && _themeColor.z > 0.7;
+    _data.color = isThemeLight ? vec4f{0.f, 0.f, 0.f, 1.f} : vec4f{ 1.f, 1.f, 1.f, 1.f };
+
     std::string toPrint;
-    const vec2f panelCenter = PANEL_SIZE * 0.5f;
 
-    // ########## top line ##########
+    // ##### LEFT #####
     // field size
-    _data.size = CELL_SIZE;
-    _data.texType = TexType::FIELD;
-    _data.color = { 1.f, 1.f, 1.f, 1.f };
-    _data.pos = { panelCenter.x - PANEL_SIZE.x * 0.5f + 40.f, panelCenter.y + 40.f };
-    _add(_data);
+    _data.pos = { PANEL_CENTER.x - PANEL_SIZE.x * 0.5f + 28.f, PANEL_CENTER.y + 45.f };
+    _printText("SIZE:");
 
-    _data.pos.x += 40.f;
-    toPrint += std::to_string(fieldSize.x);
-    toPrint += ':';
+    // game mode
+    _data.pos = { PANEL_CENTER.x - PANEL_SIZE.x * 0.5f + 28.f, PANEL_CENTER.y };
+    _printText("SPEED:");
+
+    // snake speed
+    _data.pos = { PANEL_CENTER.x - PANEL_SIZE.x * 0.5f + 28.f, PANEL_CENTER.y - 45.f };
+    _printText("MODE:");
+
+    // ##### RIGHT #####
+    // fps
+    _data.pos = { PANEL_CENTER.x + PANEL_SIZE.x * 0.5f - 28.f, PANEL_CENTER.y + 45.f };
+    _printText("FPS", Alignment::RIGHT);
+
+    // menu button
+    _data.pos = { PANEL_CENTER.x + PANEL_SIZE.x * 0.5f - 28.f, PANEL_CENTER.y - 45.f };
+    _printText("MENU", Alignment::RIGHT);
+
+    // ##### CENTER #####
+    // best score
+    _data.size = CELL_SIZE * 1.2;
+    _data.pos = { PANEL_CENTER.x - 40.f, PANEL_CENTER.y + 30.f };
+    _data.texType = TexType::STAR;
+    _data.texCoord = { 0.f, 0.f, 1.f, 1.f };
+    _data.color = { 1.f, 0.8f, 0.f, 1.f };  // yellow
+    _add(_data);
+}
+
+void Drawer::_addPanelIconsValues(const int fps, const vec2i fieldSize, const GameMode mode,
+                                  const float stepTime, const int bestScore, const int score)
+{
+    _origin = _lbPanelPos;
+
+    _data.texCoord = { 0.f, 0.f, 1.f, 1.f };
+    _data.color = { 1.f, 1.f, 1.f, 1.f };
+    _data.depth = Depth::PANEL_ICONS;
+    _data.rotateAngle = 0.f;
+
+    const bool isThemeLight = _themeColor.x > 0.7 && _themeColor.y > 0.7 && _themeColor.z > 0.7;
+    _data.color = isThemeLight ? vec4f{0.f, 0.f, 0.f, 1.f} : vec4f{ 1.f, 1.f, 1.f, 1.f };
+
+    std::string toPrint;
+
+    // ##### LEFT #####
+    // field size
+    _data.pos = { PANEL_CENTER.x - PANEL_SIZE.x * 0.5f + 28.f + 6 * 16.f, PANEL_CENTER.y + 45.f };
+    toPrint = std::to_string(fieldSize.x);
+    toPrint += ":";
     toPrint += std::to_string(fieldSize.y);
     _printText(toPrint);
 
-    // best score
-        _data.size = CELL_SIZE * 1.2;
-    _data.pos = { panelCenter.x - 40.f, panelCenter.y + 40.f };
-    _data.texType = TexType::STAR;
-    _data.texCoord = { 0.f, 0.f, 1.f, 1.f };
-    _data.color = { 1.f, 0.8f, 0.f, 1.f };
-    _add(_data);
+    // game mode
+    _data.pos = { PANEL_CENTER.x - PANEL_SIZE.x * 0.5f + 28.f + 7 * 16.f, PANEL_CENTER.y };
+    toPrint = stepTime == 0.6f ? "SLOW"
+            : (stepTime == 0.3f ? "MEDIUM"
+            : (stepTime == 0.15f ? "FAST"
+            : (stepTime == 0.1f ? "VERY FAST"
+            : "CUSTOM")));
+    _printText(toPrint);
 
-    _data.pos.x += 40.f;
-    _data.color = { 1.f, 1.f, 1.f, 1.f };
+    // snake speed
+    _data.pos = { PANEL_CENTER.x - PANEL_SIZE.x * 0.5f + 28.f + 6 * 16.f, PANEL_CENTER.y - 45.f };
+    toPrint = mode == GameMode::DEFAULT ? "DEFAULT"
+            : (mode == GameMode::THROUGH_WALLS ? "THROUGH"
+            : "BOUNDLESS");
+    _printText(toPrint);
+
+    // ##### RIGHT #####
+    // fps
+    _data.pos = { PANEL_CENTER.x + PANEL_SIZE.x * 0.5f - 28.f - 4 * 16.f, PANEL_CENTER.y + 45.f };
+    _printText(std::to_string(fps), Alignment::RIGHT);
+
+    // ##### CENTER #####
+    // best score
+    _data.pos = { PANEL_CENTER.x + 40.f, PANEL_CENTER.y + 30.f };
     _printText(std::to_string(bestScore));
 
-    // menu button
-    _data.pos = { panelCenter.x + PANEL_SIZE.x * 0.5f - 80.f, panelCenter.y + 40.f };
-    _printText("MENU");
-
-    // ########## bottom line ##########
-    // game mode
-    _data.pos = { panelCenter.x - PANEL_SIZE.x * 0.5f + 28.f, panelCenter.y - 40.f };
-    toPrint = "MODE: ";
-    toPrint += gameMode;
-    _printText(toPrint);
-
     // score
-    _data.size = CELL_SIZE;
-    _data.pos = { panelCenter.x - 40.f, panelCenter.y - 40.f };
-    _data.color = { 1.f, 1.f, 1.f, 1.f };
-    _data.texType = TexType::APPLE;
-    _data.texCoord = { 0.f, 0.f, 1.f, 1.f };
+    if (score != -1) {
+        _data.size = CELL_SIZE;
+        _data.pos = { PANEL_CENTER.x - 40.f, PANEL_CENTER.y - 30.f };
+        _data.texType = TexType::APPLE;
+        _data.texCoord = { 0.f, 0.f, 1.f, 1.f };
+        _add(_data);
+
+        _data.pos = { PANEL_CENTER.x + 40.f, PANEL_CENTER.y - 30.f };
+        _printText(std::to_string(score));
+    }
+}
+
+void Drawer::_addMenuButtons() {
+    const bool isThemeLight = _themeColor.x > 0.7 && _themeColor.y > 0.7 && _themeColor.z > 0.7;
+    const float symbolScale = 2.f;
+    const vec2f tempPos = {
+        _viewSize.x * 0.5f,
+        _zenMode ? _viewSize.y * 0.5f : _viewSize.y * 0.5f - PANEL_SIZE.y * 0.5f - 10.f
+    };
+
+    _origin = 0.f;
+    _data.pos = tempPos;
+    _data.depth = Depth::PANEL;
+    _data.color = isThemeLight ? vec4f{0.f, 0.f, 0.f, 1.f} : vec4f{ 1.f, 1.f, 1.f, 1.f };
+    _data.rotateAngle = 0.f;
+
+    _printText("SETTINGS", Alignment::CENTER, symbolScale);
+
+    _data.pos = { tempPos.x, tempPos.y + SYMBOL_SIZE.y * symbolScale * 1.5f };
+    _printText("PLAY", Alignment::CENTER, symbolScale);
+
+    _data.pos = { tempPos.x, tempPos.y - SYMBOL_SIZE.y * symbolScale * 1.5f };
+    _printText("EXIT", Alignment::CENTER, symbolScale);
+}
+
+void Drawer::_addAuxPanel(const GameStatus status) {
+    _origin = 0.f;
+    const vec2f auxPanelSize = _data.size = { 300.f, 200.f };
+    _data.pos = { (_viewSize.x) * 0.5f, (_viewSize.y - (_zenMode ? 0.f : PANEL_SIZE.y + 20.f)) * 0.5f };
+    _data.depth = Depth::PANEL;
+    _data.texType = TexType::SNAKE_BODY;
+    _data.texCoord = { 0.45f, 0.45f, 0.5f, 0.5f };
+    _data.color = { 0.0f, 0.0f, 0.0f, 0.6f };
+    _data.rotateAngle = 0.f;
     _add(_data);
 
-    _data.pos.x += 40.f;
-    _data.color = { 1.f, 1.f, 1.f, 1.f };
-    _printText(std::to_string(score));
+    _origin = _data.pos - auxPanelSize * 0.5f;
+    _data.pos = { auxPanelSize.x * 0.5f, auxPanelSize.y };
+    _data.depth -= 0.1f;
+    _data.color = 1.f;
 
-    // fps
-    _data.pos = { panelCenter.x + PANEL_SIZE.x * 0.5f - 160.f, panelCenter.y - 40.f };
-    toPrint = "FPS: ";
-    toPrint += std::to_string(fps);
-    _printText(toPrint);
+    float scaleCoeff = 2.f;
+    if (status == GameStatus::GAME_SURE_EXIT) {
+        _printText("QUIT TO MENU?", Alignment::CENTER, scaleCoeff);
+        _data.pos = { auxPanelSize.x * 0.25f, auxPanelSize.y * 0.5f };
+        scaleCoeff = 1.5f;
+        _printText("YES", Alignment::CENTER, scaleCoeff);
+        _data.pos = { auxPanelSize.x * 0.75f, auxPanelSize.y * 0.5f };
+        _printText("NO", Alignment::CENTER, scaleCoeff);
+    }
+    else {
+        _printText(status == GameStatus::GAME_WIN ? "YOU WIN" : "YOU LOOSE", Alignment::CENTER, scaleCoeff);
+        _data.pos = { auxPanelSize.x * 0.5f, auxPanelSize.y * 0.55f };
+        scaleCoeff = 1.5f;
+        _printText("RESTART", Alignment::CENTER, scaleCoeff);
+        _data.pos = { auxPanelSize.x * 0.5f, auxPanelSize.y * 0.25f };
+        _printText("QUIT TO MENU", Alignment::CENTER, scaleCoeff);
+    }
 }
 
 void Drawer::_addField(const vec2i cellsNum) {
+    _origin = 0.f;
+
     _data.size = 80.f;
     _data.depth = Depth::FIELD;
     _data.color = _themeColor;
@@ -292,23 +442,6 @@ void Drawer::_addInvisibleLines() {
     };
     _add(_data);
     _data.pos.y -= _fieldSize.y + CELL_SIZE;
-    _add(_data);
-}
-
-void Drawer::_addPlayButton(const float breathCoeff) {
-    _data.size = 256.f * breathCoeff;
-    _data.pos = {
-        _viewSize.x * 0.5f,
-        (_viewSize.y - (!_zenMode ? PANEL_SIZE.y + 20.f : 0.f)) * 0.5f
-    };
-    _data.depth = Depth::FIELD;
-    _data.color = (_themeColor.x < 0.7f && _themeColor.y < 0.7f && _themeColor.z < 0.7f)
-                ? vec4f{ 1.f, 1.f, 1.f, 1.f }
-                : vec4f{ 0.f, 0.f, 0.f, 1.f };
-    _data.texType = TexType::PLAY;
-    _data.texCoord = { 0.f, 0.f, 1.f, 1.f };
-    _data.rotateAngle = 0.f;
-
     _add(_data);
 }
 
@@ -372,7 +505,8 @@ void Drawer::_addDynamicSnake(const Snake& snake) {
 }
 
 void Drawer::_addStreamSnake(const Snake& snake, const float snakeMovingCoeff, const bool eatingApple,
-                            const vec2i applePos, bool& straightLook, const bool isBlinkTime) {
+                            const vec2i applePos, bool& straightLook, const bool isBlinkTime)
+{
     _data.size = CELL_SIZE;
     _data.color = _snakeColor;
     _data.texType = TexType::SNAKE_TAIL;
@@ -576,7 +710,7 @@ void Drawer::_addStreamSnake(const Snake& snake, const float snakeMovingCoeff, c
     if (headThroughBorder) {
         vec2f alpha = static_cast<vec2f>(direction) * snakeMovingCoeff;
         _data.pos = (static_cast<vec2f>(snakeBody[1]) + alpha) * CELL_SIZE;
-        
+
         vec2i invisiblePrimitivesPosition = (snakeBody[1] + direction) * static_cast<int>(CELL_SIZE);
         _data.pos = invisiblePrimitivesPosition;
         _data.size = { CELL_SIZE, CELL_SIZE * 1.2f };
@@ -586,7 +720,7 @@ void Drawer::_addStreamSnake(const Snake& snake, const float snakeMovingCoeff, c
         _data.texType = TexType::SNAKE_BODY;
         _data.texCoord = { 0.45f, 0.45f, 0.5f, 0.5f };
         _add(_data);
-        
+
         _data.pos = getThroughPos(_data.pos, direction, _fieldSize) - static_cast<vec2f>(direction) * CELL_SIZE;
         _add(_data);
         _data.color = _snakeColor;
@@ -656,7 +790,7 @@ void Drawer::_addStreamSnake(const Snake& snake, const float snakeMovingCoeff, c
             _data.pos = getThroughPos(eye2Pos, direction, _fieldSize);
             _add(_data);
         }
-        
+
         if (!(headThroughBorder && snakeMovingCoeff > 0.6f) && !isBlinkTime) {
             _data.depth = Depth::EYE;
             _data.color = { 1.f, 1.f, 1.f, 1.f };
@@ -699,46 +833,59 @@ void Drawer::_addStreamSnake(const Snake& snake, const float snakeMovingCoeff, c
     }
 }
 
-void Drawer::_printText(const std::string& str) {
+void Drawer::_printText(const std::string& str, const Alignment alignment, const float scale) {
     _data.texType = TexType::ALPHABET;
-    _data.size = { 16.f, 25.f };
-    _data.pos.y -= 5.f;
+    _data.size = SYMBOL_SIZE * scale;
+    _data.pos.y -= 2.5f * scale;
 
-    int x, y;
+    switch (alignment) {
+        case Alignment::CENTER:
+            _data.pos.x -= static_cast<float>(str.size() - 1) * 0.5f * _data.size.x;
+            break;
+        case Alignment::RIGHT:
+            _data.pos.x -= static_cast<float>(str.size() - 1) * _data.size.x;
+            break;
+        default: break;
+    }
+
     for (const char symbol : str) {
-        if (symbol != ' ') {
-            int shiftNum = symbol - 'A';
-            if (shiftNum < 0) {
-                constexpr int diffTo0 = 17;
-                constexpr int lettersNum = 26;
-
-                switch(symbol) {
-                    case '<': shiftNum -= 1; break;
-                    case '>': shiftNum -= 2; break;
-                    case '?': shiftNum -= 2; break;
-                    default: break;
-                }
-
-                shiftNum += diffTo0 + lettersNum;
-            }
-            y = shiftNum / 8;
-            x = shiftNum - y * 8;
-
-            constexpr vec2f texSymbolSize = { 0.125f, 0.1953f };
-            const vec2f texSymbolPos = texSymbolSize * static_cast<vec2f>(vec2i{ x + 1, y + 1 });
-            _data.texCoord = { texSymbolPos - texSymbolSize, texSymbolPos };
-            _add(_data);
+        if (symbol == ' ') {
+            _data.pos.x += _data.size.x;
+            continue;
         }
+
+        int shiftNum = symbol - 'A';
+        if (shiftNum < 0) {
+            constexpr int diffTo0 = 17;
+            constexpr int lettersNum = 26;
+
+            switch(symbol) {
+                case '<': shiftNum -= 1; break;
+                case '>': shiftNum -= 2; break;
+                case '?': shiftNum -= 2; break;
+                default: break;
+            }
+
+            shiftNum += diffTo0 + lettersNum;
+        }
+        int y = shiftNum / 8;
+        int x = shiftNum - y * 8;
+
+        constexpr vec2f texSymbolSize = { 0.125f, 0.1953f };
+        const vec2f texSymbolPos = texSymbolSize * static_cast<vec2f>(vec2i{ x + 1, y + 1 });
+        _data.texCoord = { texSymbolPos - texSymbolSize, texSymbolPos };
+        _add(_data);
         _data.pos.x += _data.size.x;
     }
 }
 
 void Drawer::_add(const RectangleData& data) {
-    vec2f size = data.size * 0.5f * _contentScale;
-    vec2f pos = data.pos * _contentScale;
+    float contentScale = static_cast<float>(_contentScale) / 100.f;
+    vec2f size = data.size * 0.5f * contentScale;
+    vec2f pos = data.pos * contentScale;
 
-    vec2f normViewSize = _viewSize * 0.5f * _contentScale;
-    vec2f normOrigin = _origin * _contentScale - normViewSize;
+    vec2f normViewSize = _viewSize * 0.5f * contentScale;
+    vec2f normOrigin = _origin * contentScale - normViewSize;
 
     vec3f lb{ (rotatePoint({-size.x,-size.y }, data.rotateAngle) + pos + normOrigin) / normViewSize, data.depth };
     vec3f rb{ (rotatePoint({ size.x,-size.y }, data.rotateAngle) + pos + normOrigin) / normViewSize, data.depth };

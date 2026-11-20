@@ -1,60 +1,41 @@
 #include "window.hpp"
 
-#include "../config/window_config.hpp"
-#include "../config/draw_config.hpp"
-#include "../core/action.hpp"
-#include "../core/logger.hpp"
+#include "src/config/window_config.hpp"
+#include "src/core/action.hpp"
+#include "src/core/logger.hpp"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include <string>
-
-inline static Action keyMap[GLFW_KEY_LAST + 1];
+// #include <iostream>
 
 namespace {
-    bool menuMode = true;
-    bool isHandCursor = false;
-
-    bool isCursorInTriggerZone(vec2f cursorPos, vec4f triggerZone, const float scale) {
-        triggerZone *= scale;
-        cursorPos *= scale;
-        float halfSizeX = triggerZone.z * scale * 0.5f;
-        float halfSizeY = triggerZone.w * scale * 0.5f;
-
-        float left = triggerZone.x - halfSizeX;
-        float top = triggerZone.y - halfSizeY;
-
-        return cursorPos.x >= left && cursorPos.x <= left + halfSizeX * 2.f
-            && cursorPos.y >= top && cursorPos.y <= top + halfSizeY * 2.f;
-    }
+    Action keyMap[GLFW_KEY_LAST + 1];
 
     void mapKey() {
         for (int i = 0; i <= GLFW_KEY_LAST; ++i)
             keyMap[i] = Action::COUNT;
 
-        keyMap[GLFW_KEY_ESCAPE] = Action::Exit;
-        keyMap[GLFW_KEY_P] = Action::Pause;
-        keyMap[GLFW_KEY_SPACE] = Action::Space;
+        keyMap[GLFW_KEY_ESCAPE] = Action::EXIT;
+        keyMap[GLFW_KEY_P] = Action::PAUSE;
+        keyMap[GLFW_KEY_SPACE] = Action::SPACE;
+        keyMap[GLFW_KEY_Y] = Action::YES;
+        keyMap[GLFW_KEY_N] = Action::NO;
 
-        keyMap[GLFW_KEY_W]  = Action::MoveUp;
-        keyMap[GLFW_KEY_UP] = Action::MoveUp;
+        keyMap[GLFW_KEY_W]  = Action::MOVE_UP;
+        keyMap[GLFW_KEY_UP] = Action::MOVE_UP;
+        keyMap[GLFW_KEY_A]    = Action::MOVE_LEFT;
+        keyMap[GLFW_KEY_LEFT] = Action::MOVE_LEFT;
+        keyMap[GLFW_KEY_S]    = Action::MOVE_DOWN;
+        keyMap[GLFW_KEY_DOWN] = Action::MOVE_DOWN;
+        keyMap[GLFW_KEY_D]     = Action::MOVE_RIGHT;
+        keyMap[GLFW_KEY_RIGHT] = Action::MOVE_RIGHT;
 
-        keyMap[GLFW_KEY_A]    = Action::MoveLeft;
-        keyMap[GLFW_KEY_LEFT] = Action::MoveLeft;
-
-        keyMap[GLFW_KEY_S]    = Action::MoveDown;
-        keyMap[GLFW_KEY_DOWN] = Action::MoveDown;
-
-        keyMap[GLFW_KEY_D]     = Action::MoveRight;
-        keyMap[GLFW_KEY_RIGHT] = Action::MoveRight;
-
-        keyMap[GLFW_KEY_EQUAL] = Action::ScaleUp;
-        keyMap[GLFW_KEY_MINUS] = Action::ScaleDown;
-
-        keyMap[GLFW_KEY_Z] = Action::ZenMode;
-
-        keyMap[GLFW_KEY_M] = Action::EasterEgg;
+        keyMap[GLFW_KEY_EQUAL] = Action::SCALE_UP;
+        keyMap[GLFW_KEY_MINUS] = Action::SCALE_DOWN;
+        keyMap[GLFW_KEY_Z] = Action::ZEN_MODE;
+        keyMap[GLFW_KEY_M] = Action::PRAVEDNOV;
     }
 }
 
@@ -97,41 +78,15 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
 
 void Window::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
     Window* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
-    if (self && menuMode && button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-        double x, y;
-        glfwGetCursorPos(window, &x, &y);
-        vec2f cursorPos = vec2f{ static_cast<float>(x), static_cast<float>(y) };
-        vec4f triggerZone = vec4f{
-            self->_windowParam.x * 0.5f,
-            self->_windowParam.y * 0.5f + (self->_zenMode ? 0.f : 150.f * 0.5f),
-            300.f, 
-            300.f
-        };
-
-        if (isCursorInTriggerZone(cursorPos, triggerZone, self->_windowScale * self->_contentScale)) {
-            self->_buttonClicked = true;
-            menuMode = false;
-            glfwSetCursor(self->_handle, nullptr);
-            isHandCursor = false;
-        }
+    if (self) {
+        // send left button information to inputHandler
     }
 }
 
 void Window::cursorPosCallback(GLFWwindow *window, double xPos, double yPos) {
     Window* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
-    if (self && menuMode) {
-        vec2f cursorPos = vec2f{ static_cast<float>(xPos), static_cast<float>(yPos) };
-        vec4f triggerZone = vec4f{ self->_windowParam.x * 0.5f, (self->_windowParam.y) * 0.5f + 85.f * self->_contentScale, 300.f, 300.f };
-
-        bool inTriggerZone = isCursorInTriggerZone(cursorPos, triggerZone, self->_windowScale * self->_contentScale);
-        if (inTriggerZone && !isHandCursor) {
-            isHandCursor = true;
-            glfwSetCursor(self->_handle, self->_cursorHandle);
-        }
-        else if (!inTriggerZone && isHandCursor) {
-            isHandCursor = false;
-            glfwSetCursor(self->_handle, nullptr);
-        }
+    if (self) {
+        // send new CursorPos to InputHandler
     }
 }
 
@@ -181,21 +136,14 @@ void Window::setViewport() {
     glViewport(pos.x, pos.y, size.x, size.y);
 }
 
-void Window::updateView() {
-    if (_zenMode) {
-        _rawViewSize = _fieldSize;
-        _viewSize = static_cast<vec2f>(_rawViewSize) * _contentScale;
+void Window::updateView(const vec2f rawViewSize, const float contentScale, const bool zenMode) {
+    if (zenMode) {
+        _viewSize = rawViewSize * contentScale;
         _windowParam.x = _viewSize.x;
         _windowParam.y = _viewSize.y;
     }
     else {
-        constexpr vec2i minViewSize = { 800, 1000 };
-        constexpr int panelHeight = 200;
-        _rawViewSize = {
-            static_cast<int>(static_cast<float>((_fieldSize.x <= minViewSize.x ? minViewSize.x : _fieldSize.x) + 40)),
-            static_cast<int>(static_cast<float>((_fieldSize.y <= minViewSize.y - panelHeight ? minViewSize.y : _fieldSize.y + panelHeight) + 20))
-        };
-        _viewSize = static_cast<vec2f>(_rawViewSize) * _contentScale;
+        _viewSize = static_cast<vec2f>(rawViewSize) * contentScale;
 
         if (_windowParam.x < _viewSize.x)
             _windowParam.x = _viewSize.x;
@@ -217,13 +165,9 @@ void Window::updateView() {
 Window::Window()
     : _windowParam(WindowConfig::windowWidth, WindowConfig::windowHeight, 0, 0)
     , _bufferSize(WindowConfig::windowWidth, WindowConfig::windowHeight)
-    , _rawViewSize(800, 1000)
-    , _viewSize(_rawViewSize)
+    , _viewSize(0, 0)
     , _windowScale(1.f)
-    , _contentScale(DrawConfig::contentScale)
     , _fullscreen(WindowConfig::fullscreen)
-    , _zenMode(DrawConfig::zenMode)
-    , _buttonClicked(false)
 {
     if (!glfwInit()) {
         Logger::getInstance().printError("Window", "GLFW initialization failed");
@@ -301,8 +245,6 @@ Window::~Window() {
     WindowConfig::fullscreen = _fullscreen;
     WindowConfig::windowWidth = _windowParam.x;
     WindowConfig::windowHeight = _windowParam.y;
-    DrawConfig::contentScale = _contentScale;
-    DrawConfig::zenMode = _zenMode;
 }
 
 void Window::close() const { glfwSetWindowShouldClose(_handle, GLFW_TRUE); }
@@ -311,10 +253,4 @@ bool Window::shouldClose() { return static_cast<bool>(glfwWindowShouldClose(_han
 void Window::endFrame() {
     glfwSwapBuffers(_handle);
     glfwPollEvents();
-}
-
-void Window::setMenuMode(const bool isMenu) {
-    menuMode = isMenu;
-    if (isMenu)
-        glfwSetCursor(_handle, nullptr);
 }

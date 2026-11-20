@@ -38,7 +38,6 @@ Game::Game()
     , _snake({ static_cast<int>(GameConfig::xFieldSize)
              , static_cast<int>(GameConfig::yFieldSize) })
     , _status(GameStatus::MENU)
-    , _prevStatus(_status)
     , _mode(GameConfig::gameMode)
     , _score(0)
     , _bestScore(GameConfig::maxScore)
@@ -63,7 +62,7 @@ void Game::update() {
         if (_field.getFreeCellsSize() == 0) {
             _snake.move(newHead);
             _apple.deletePosition();
-            updateStatus(GameStatus::WIN);
+            updateStatus(GameStatus::GAME_WIN);
             return;
         }
 
@@ -73,7 +72,7 @@ void Game::update() {
     }
 
     if (checkLoose(_mode, newHead, _snake.getBody(), _field.size())) {
-        updateStatus(GameStatus::LOOSE);
+        updateStatus(GameStatus::GAME_LOOSE);
         _snake.move(newHead);
         return;
     }
@@ -103,17 +102,14 @@ void Game::reset() {
     _needToGenApple = false;
 }
 
-void Game::updateStatus(const GameStatus newStatus) {
-    _prevStatus = _status;
-    _status = newStatus;
-}
+void Game::updateStatus(const GameStatus status) { _status = status; }
 
 void Game::saveStats() {
     GameConfig::maxScore = _bestScore;
 
     switch (_status) {
-        case GameStatus::LOOSE: ++GameConfig::deaths; break;
-        case GameStatus::WIN:   ++GameConfig::wins; break;
+        case GameStatus::GAME_LOOSE: ++GameConfig::deaths; break;
+        case GameStatus::GAME_WIN: ++GameConfig::wins; break;
         default: break;
     }
 }

@@ -182,8 +182,7 @@ bool ConfigManager::readFile() {
                 printError("\"" + configVar + "\" incorrect (50 < scale < 200)");
             }
             else {
-                float scaleCoeff = static_cast<float>(contextScale) / 100.f;
-                DrawConfig::contentScale = scaleCoeff;
+                DrawConfig::contentScale = contextScale;
             }
         }
         else if (configVar == "maxScore") {
@@ -327,7 +326,7 @@ bool ConfigManager::saveFile() {
     std::string_view strFullscreen = WindowConfig::fullscreen ? "true" : "false";
     std::string_view strZenMode = DrawConfig::zenMode ? "true" : "false";
     
-    int contentScale = static_cast<int>(DrawConfig::contentScale * 100.f);
+    int contentScale = DrawConfig::contentScale;
 
     std::string strGameMode;
     switch (GameConfig::gameMode) {
