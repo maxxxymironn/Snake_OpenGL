@@ -6,3 +6,4 @@ temp
 compile_commands.json
 mingw-w64.cmake
 .zed
+mingw-toolchain.cmake
