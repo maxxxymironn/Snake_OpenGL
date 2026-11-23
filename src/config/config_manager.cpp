@@ -67,7 +67,7 @@ ConfigManager::~ConfigManager() {
         printError("file not saved");
 }
 
-#ifdef _WIN32
+#ifdef _WIN32 
 std::filesystem::path ConfigManager::getFilePath() {
     PWSTR pszPath = nullptr;
     HRESULT hr = SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &pszPath);

@@ -15,6 +15,7 @@ namespace {
     constexpr float PI2 = PI / 2.f;
 
     constexpr float CELL_SIZE = 40.f;
+    constexpr float PADDING_SIZE = 20.f;
     constexpr vec2f SYMBOL_SIZE = { 16.f, 25.f };
     constexpr vec2f PANEL_SIZE = { 800.f, 160.f };
     constexpr vec2f PANEL_CENTER = PANEL_SIZE * 0.5f;
@@ -59,11 +60,15 @@ namespace {
 
     vec2f calculateViewSize(const vec2f fieldSize, const bool zenMode) {
         constexpr vec2f MIN_VIEW_SIZE = { 800.f, 1000.f };
-        return zenMode ? fieldSize
-            : vec2f{
-                (fieldSize.x <= MIN_VIEW_SIZE.x ? MIN_VIEW_SIZE.x : fieldSize.x) + 40.f,
-                (fieldSize.y <= MIN_VIEW_SIZE.y - PANEL_SIZE.y ? MIN_VIEW_SIZE.y : fieldSize.y + PANEL_SIZE.y) + 20.f
-            };
+        if (zenMode)
+            return fieldSize;
+
+        return {
+            (fieldSize.x >= MIN_VIEW_SIZE.x ? fieldSize.x : MIN_VIEW_SIZE.x) + PADDING_SIZE * 2.f,
+            (fieldSize.y >= MIN_VIEW_SIZE.y - PANEL_SIZE.y
+                ? fieldSize.y + PANEL_SIZE.y + PADDING_SIZE * 2.f
+                : MIN_VIEW_SIZE.y) + PADDING_SIZE
+        };
     }
 }
 
@@ -95,11 +100,6 @@ void Drawer::updateThemeColor(const vec4f color) {
     _auxThemeColor = { color.x - 0.05f, color.y - 0.05f, color.z - 0.05f, color.w };
     _rendererHandler.setClearColor({ color.x - 0.1f, color.y - 0.1f, color.z - 0.1f, color.w });
 }
-
-// void Drawer::updateViewSize(const vec2f size) {
-//     _viewSize = size;
-//     _updateStaticBuffer = true;
-// }
 
 void Drawer::updateZenMode() {
     _zenMode = !_zenMode; _zenModeChanged = true;
@@ -292,10 +292,10 @@ void Drawer::_addPanelIconsValues(const int fps, const vec2i fieldSize, const Ga
 
     // game mode
     _data.pos = { PANEL_CENTER.x - PANEL_SIZE.x * 0.5f + 28.f + 7 * 16.f, PANEL_CENTER.y };
-    toPrint = stepTime == 0.6f ? "SLOW"
-            : (stepTime == 0.3f ? "MEDIUM"
-            : (stepTime == 0.15f ? "FAST"
-            : (stepTime == 0.1f ? "VERY FAST"
+    toPrint = stepTime == 0.6f ? "VERY SLOW"
+            : (stepTime == 0.3f ? "SLOW"
+            : (stepTime == 0.15f ? "MEDIUM"
+            : (stepTime == 0.1f ? "FAST"
             : "CUSTOM")));
     _printText(toPrint);
 
@@ -713,7 +713,7 @@ void Drawer::_addStreamSnake(const Snake& snake, const float snakeMovingCoeff, c
 
         vec2i invisiblePrimitivesPosition = (snakeBody[1] + direction) * static_cast<int>(CELL_SIZE);
         _data.pos = invisiblePrimitivesPosition;
-        _data.size = { CELL_SIZE, CELL_SIZE * 1.2f };
+        _data.size = { CELL_SIZE, CELL_SIZE * 1.3f };
         _data.depth = Depth::HIDE_HEAD;
         _data.color = _themeColor - vec4f{ 0.1f, 0.1f, 0.1f, 0.f };
         _data.rotateAngle = direction.x == 0 ? PI2 : 0.f;
